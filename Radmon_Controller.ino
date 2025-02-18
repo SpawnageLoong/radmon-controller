@@ -30,6 +30,7 @@
 #define DEBUG 1
 //#define SERIAL_MODE 1
 #define CAN_MODE 1
+//#define DEBUG_CAN 1
 //#define GM_COUNTER 1
 //#define I2C_SLAVES 1
 //#define TIMER 1
@@ -111,7 +112,7 @@ int readSram(int slaveAddress);
 
 void setup() {
   // Serial
-  #ifdef defined(DEBUG) || defined(SERIAL_MODE)
+  #ifdef DEBUG
     Serial.begin(9600);
     while (! Serial){}
     Serial.println("\n\n Serial init OK");
@@ -120,18 +121,23 @@ void setup() {
   // CAN
   #ifdef CAN_MODE
     CAN.setPins(CAN_PIN_CS, CAN_PIN_INT);
-    CAN.setClockFrequency(8E6);
+    //CAN.setClockFrequency(8E6);
     CAN.filter(CAN_REC_ID);
+    while (!CAN.begin(500E3)){
+      #ifdef DEBUG
+        Serial.println("Starting CAN failed!");
+      #endif
+      delay(1000);
+    }
     CAN.onReceive(canCallback);
-    while (!CAN.begin(500E3)){}
     #ifdef DEBUG
       Serial.println("CAN init OK");
     #endif
   #endif
 
   // FRAM
-  pinMode(FRAM_CS,  OUTPUT);
-  digitalWrite(FRAM_CS, HIGH);
+  //pinMode(FRAM_CS,  OUTPUT);
+  //digitalWrite(FRAM_CS, HIGH);
 
   // Geiger Counter
   #ifdef GM_COUNTER
@@ -179,7 +185,7 @@ void setup() {
   #endif
 
   // test setup
-  pinMode(LED_BUILTIN, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
 }
 
 //**************************************************************************
@@ -291,84 +297,93 @@ void loop() {
 // Functions
 //**************************************************************************
 
-/**
- * \brief           Callback function to handle received CAN packets
- * \details         
- */
 #ifdef CAN_MODE
-  void canCallback(int packetSize) { 
-    uint8_t packetDlc = CAN.packetDlc();
-    uint8_t in_arr[packetDlc];
-    CAN.readBytes(in_arr, packetDlc);
-    #ifdef DEBUG
-      sprintf(cbuf, "Frame data: %X", in_arr[0]);
-      for (int i=1; i<packetDlc; i++) {
-        sprintf(cbuf + strlen(cbuf), ", %X", in_arr[i]);
+  /**
+  * \brief           Callback function to handle received CAN packets
+  * \details         
+  */
+  void canCallback(int packetSize) {
+    #ifdef DEBUG_CAN
+      Serial.print("Received ");
+      while (CAN.available()) {
+        Serial.println((char)CAN.read(), HEX);
       }
-      sprintf(cbuf + strlen(cbuf), "\n");
-      Serial.println(cbuf);
-    #endif
-    iInputChar = in_arr[0];
-    uint16_t paramA = 0;
-    uint16_t paramB = 0;
-    uint32_t ts;
-    switch(iInputChar) {
-      case 0x01: // Dump full FRAM data; 32 KBYTE; from 0x0000_0000 to 0x0000_7FFF
-        #ifdef DEBUG
-          Serial.print("dumping 32kB");
-        #endif
-        CAN_Dump_FRAM(0x0000, 0x8000);
-        break;
-      
-      case 0x02: // Dump selected section of FRAM
-        paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
-        paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
-        #ifdef DEBUG
-          sprintf(cbuf, "Dumping %i bytes to CAN", paramB);
-          Serial.print(cbuf);
-        #endif
-        CAN_Dump_FRAM(paramA, paramB);
-        break;
-
-      case 0xAA: // Update RTC
-        #ifdef RTC_ON
-          ts = ((uint32_t)in_arr[1] << 24 | (uint32_t)in_arr[2] << 16 | (uint32_t)in_arr[3] << 8 | (uint32_t)in_arr[4]);
-          rtc.setEpoch(ts);
+    #else
+      uint8_t packetDlc = CAN.packetDlc();
+      uint8_t in_arr[packetDlc];
+      CAN.readBytes(in_arr, packetDlc);
+      #ifdef DEBUG
+        sprintf(cbuf, "Frame data: %X", in_arr[0]);
+        for (int i=1; i<packetDlc; i++) {
+          sprintf(cbuf + strlen(cbuf), ", %X", in_arr[i]);
+        }
+        sprintf(cbuf + strlen(cbuf), "\n");
+        Serial.print(cbuf);
+      #endif
+      iInputChar = in_arr[0];
+      uint16_t paramA = 0;
+      uint16_t paramB = 0;
+      uint32_t ts;
+      switch(iInputChar) {
+        case 0x01: // Dump full FRAM data; 32 KBYTE; from 0x0000_0000 to 0x0000_7FFF
           #ifdef DEBUG
-            sprintf(cbuf, "Updated RTC to %i", ts);
+            Serial.print("dumping 32kB");
+          #endif
+          CAN_Dump_FRAM(0x0000, 0x8000);
+          break;
+        
+        case 0x02: // Dump selected section of FRAM
+          paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
+          paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
+          #ifdef DEBUG
+            sprintf(cbuf, "Dumping %i bytes to CAN", paramB);
             Serial.print(cbuf);
           #endif
-        #endif
-        break;
+          CAN_Dump_FRAM(paramA, paramB);
+          break;
 
-      default: // Unknown command
-        err[1] = 0x01;
-        CAN.beginPacket(CAN_SEND_ID);
-        CAN.write(err, 8);
-        CAN.endPacket();
-        break;
-    }
-    iInputChar = NULL;
+        case 0xAA: // Update RTC
+          #ifdef RTC_ON
+            ts = ((uint32_t)in_arr[1] << 24 | (uint32_t)in_arr[2] << 16 | (uint32_t)in_arr[3] << 8 | (uint32_t)in_arr[4]);
+            rtc.setEpoch(ts);
+            #ifdef DEBUG
+              sprintf(cbuf, "Updated RTC to %i", ts);
+              Serial.print(cbuf);
+            #endif
+          #endif
+          break;
+
+        default: // Unknown command
+          #ifdef DEBUG
+            Serial.println("Unknown command");
+          #endif
+          err[1] = 0x01;
+          CAN.beginPacket(CAN_SEND_ID);
+          CAN.write(err, 8);
+          CAN.endPacket();
+          break;
+      }
+      iInputChar = NULL;
+    #endif
   }
 #endif
 
 
-/**
- * \brief           Callback function to handle signals from the Geiger-Muller Tube
- * \details         Increments gmTubeCount when triggered.
- */
 #ifdef GM_COUNTER
+  /**
+  * \brief           Callback function to handle signals from the Geiger-Muller Tube
+  * \details         Increments gmTubeCount when triggered.
+  */
   void gmTubeISR() {
     gmTubeCount++;  // Increment count each time a falling edge is detected
   }
 #endif
 
-
-/**
- * \brief           Callback function to handle dataTimer compare interrupts
- * \details         Updates FRAM and resets current GM Tube count
- */
-#ifdef defined(TIMER) && defined(GM_COUNTER)
+#ifdef GM_COUNTER
+  /**
+  * \brief           Callback function to handle dataTimer compare interrupts
+  * \details         Updates FRAM and resets current GM Tube count
+  */
   void dataTimerCallback(void) {
     #ifdef RTC_ON
       uint32_t now = rtc.getEpoch();
