@@ -54,6 +54,7 @@ volatile uint32_t gmTubeCount = 0;
 // Timer
 #ifdef TIMER
   Adafruit_ZeroTimer dataTimer = Adafruit_ZeroTimer(DATA_TIMER);
+  uint8_t secondsCounter = 0;
 #endif
 
 // RTC
@@ -98,6 +99,7 @@ volatile bool togglepin = false;
 void canCallback(int packetSize);
 void gmTubeISR();
 void dataTimerCallback();
+void readSlaveSRAMs();
 void clearBus();
 void powerCycle();
 bool performHandshake(int slaveAddress);
@@ -194,13 +196,6 @@ void setup() {
 
 void loop() {
   #ifdef I2C_SLAVES
-    handshake1 = 0;
-    handshake2 = 0;
-    errorCount1 = 0;
-    errorCount2 = 0;
-    readResult1 = 0;
-    readResult2 = 0;
-    
     if (digitalRead(TRIGGER_PIN)){//no trigger do nothing
       #ifdef DEBUG
         Serial.println("Read Not Triggered");
@@ -210,85 +205,7 @@ void loop() {
     }
 
     else{ //triggered, time to get SRAM data
-      unsigned long start_loop_time = millis();
-      #ifdef DEBUG
-        Serial.println("Reading the 2 SRAMs");
-      #endif  
-
-      #ifdef DEBUG
-        Serial.println("Requesting Handshake from Slave 1");
-      #endif
-  
-      handshake1 = performHandshake(SLAVE1_ADDRESS); //handshake with slave 1
-
-      if (handshake1){ //if handshake 1 is successful
-        #ifdef DEBUG
-          Serial.println("Handshake with Slave1 Successful");
-          Serial.println("Reading SRAM of Slave 1");
-        #endif
-        readResult1 = readSram(SLAVE1_ADDRESS); //read sram data
-      }
-
-      if ((!handshake1) || (readResult1 != READ_COMPLETE)){ //if no handshake or no read
-        #ifdef DEBUG
-          Serial.println("Need to clear the bus due to slave 1");
-        #endif
-
-        if (clearBusCounter >= 1) { //1 clear bus failed
-          clearBusCounter = 0;
-          powerCycle();
-        }
-        else{
-          clearBus();
-          clearBusCounter++;
-        }
-        //then just let the loop() just run again
-      }
-
-      else { //if read1 was done
-        #ifdef DEBUG
-          Serial.println("Requesting Handshake from Slave 2");
-        #endif
-  
-        handshake2 = performHandshake(SLAVE2_ADDRESS);//try handshake2  
-        if (handshake2){ //read SRAM2 
-          #ifdef DEBUG
-            Serial.println("Handshake with Slave 2 Successful");
-            Serial.println("Reading SRAM of Slave 2");
-          #endif
-          readResult2 = readSram(SLAVE2_ADDRESS); //read sram data
-        }
-
-        if ((!handshake2) || (readResult2 != READ_COMPLETE)){ //if either handshake or read wasn't successful.
-          #ifdef DEBUG
-            Serial.print("Need to clear the bus due to slave 2");
-          #endif
-
-          if (clearBusCounter >= 1) { //1 clear bus failed
-            clearBusCounter = 0;
-            powerCycle();
-          }
-          else{
-            clearBus();
-            clearBusCounter++;
-          }
-        }
-
-        else { //if read2 was successful
-          #ifdef DEBUG
-            Serial.print("Error count for SRAM1: ");
-            Serial.println(errorCount1);
-            Serial.print("Error count for SRAM2: ");
-            Serial.println(errorCount2);
-            Serial.println("Reading of 2 SRAMs successfully completed");
-          #endif
-        }
-      }
-      #ifdef DEBUG
-        Serial.print("Time since read trigger is ");
-        Serial.println(millis()-start_loop_time);
-      #endif
-      delay(5000); // Wait before attempting SRAM read again
+      readSlaveSRAMs();
     }//trigger_else
   #endif
 
@@ -388,7 +305,7 @@ void loop() {
   void gmTubeISR() {
     gmTubeCount++;  // Increment count each time a falling edge is detected
     digitalWrite(GM_PIN_OUT, HIGH);
-    Serial.println("Cancer");
+    //Serial.println("Cancer");
   }
 
 
@@ -397,6 +314,12 @@ void loop() {
   * \details         Updates FRAM and resets current GM Tube count
   */
   void dataTimerCallback(void) {
+    digitalWrite(LED_BUILTIN, togglepin);
+    togglepin = !togglepin;
+    if (secondsCounter < 60) {
+      secondsCounter++;
+      return;
+    }
     #ifdef RTC_ON
       uint32_t now = rtc.getEpoch();
     #else
@@ -417,14 +340,106 @@ void loop() {
     if (rollingAddress >= 0x7FF){
       rollingAddress = 0;
     }
-    digitalWrite(LED_BUILTIN, togglepin);
-    togglepin = !togglepin;
     gmTubeCount = 0;
+    secondsCounter = 0;
   }
 #endif
 
 
 #ifdef I2C_SLAVES
+  /**
+   * \brief           Reads the SRAMs of the two slave ATMegas
+   * \details         
+   */
+  void readSlaveSRAMs() {
+    handshake1 = 0;
+    handshake2 = 0;
+    errorCount1 = 0;
+    errorCount2 = 0;
+    readResult1 = 0;
+    readResult2 = 0;
+
+    unsigned long start_loop_time = millis();
+    #ifdef DEBUG
+      Serial.println("Reading the 2 SRAMs");
+    #endif  
+
+    #ifdef DEBUG
+      Serial.println("Requesting Handshake from Slave 1");
+    #endif
+
+    handshake1 = performHandshake(SLAVE1_ADDRESS); //handshake with slave 1
+
+    if (handshake1){ //if handshake 1 is successful
+      #ifdef DEBUG
+        Serial.println("Handshake with Slave1 Successful");
+        Serial.println("Reading SRAM of Slave 1");
+      #endif
+      readResult1 = readSram(SLAVE1_ADDRESS); //read sram data
+    }
+
+    if ((!handshake1) || (readResult1 != READ_COMPLETE)){ //if no handshake or no read
+      #ifdef DEBUG
+        Serial.println("Need to clear the bus due to slave 1");
+      #endif
+
+      if (clearBusCounter >= 1) { //1 clear bus failed
+        clearBusCounter = 0;
+        powerCycle();
+      }
+      else{
+        clearBus();
+        clearBusCounter++;
+      }
+      //then just let the loop() just run again
+    }
+
+    else { //if read1 was done
+      #ifdef DEBUG
+        Serial.println("Requesting Handshake from Slave 2");
+      #endif
+
+      handshake2 = performHandshake(SLAVE2_ADDRESS);//try handshake2  
+      if (handshake2){ //read SRAM2 
+        #ifdef DEBUG
+          Serial.println("Handshake with Slave 2 Successful");
+          Serial.println("Reading SRAM of Slave 2");
+        #endif
+        readResult2 = readSram(SLAVE2_ADDRESS); //read sram data
+      }
+
+      if ((!handshake2) || (readResult2 != READ_COMPLETE)){ //if either handshake or read wasn't successful.
+        #ifdef DEBUG
+          Serial.print("Need to clear the bus due to slave 2");
+        #endif
+
+        if (clearBusCounter >= 1) { //1 clear bus failed
+          clearBusCounter = 0;
+          powerCycle();
+        }
+        else{
+          clearBus();
+          clearBusCounter++;
+        }
+      }
+
+      else { //if read2 was successful
+        #ifdef DEBUG
+          Serial.print("Error count for SRAM1: ");
+          Serial.println(errorCount1);
+          Serial.print("Error count for SRAM2: ");
+          Serial.println(errorCount2);
+          Serial.println("Reading of 2 SRAMs successfully completed");
+        #endif
+      }
+    }
+    #ifdef DEBUG
+      Serial.print("Time since read trigger is ");
+      Serial.println(millis()-start_loop_time);
+    #endif
+  }
+
+
   /**
   * \brief           Clears the I2C bus after a lockup
   * \details         
