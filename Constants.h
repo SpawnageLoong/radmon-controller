@@ -52,7 +52,7 @@
 // Geiger Counter Defines
 //**************************************************************************
 
-#define GM_PIN_INT              2     // INT Pin (INT[7])
+#define GM_PIN_INT              4     // INT Pin (INT[11])
 #define GM_PIN_OUT              3     // LED Output
 #define DATA_TIMER              3     // Timer 3 is used
 

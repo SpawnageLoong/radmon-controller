@@ -388,7 +388,7 @@ void loop() {
   void gmTubeISR() {
     gmTubeCount++;  // Increment count each time a falling edge is detected
     digitalWrite(GM_PIN_OUT, HIGH);
-    //Serial.println("Cancer");
+    Serial.println("Cancer");
   }
 
 
@@ -413,7 +413,7 @@ void loop() {
     //uint32_t testDataA[64];
     //uint32_t testDataB[64];
     Store_Data_To_FRAM(rollingAddress, fixedFrame, sizeof(fixedFrame));
-    rollingAddress += 8; // temp value, 8 bytes
+    rollingAddress += 12; // temp value, 12 bytes
     if (rollingAddress >= 0x7FF){
       rollingAddress = 0;
     }
