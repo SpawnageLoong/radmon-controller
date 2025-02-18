@@ -390,193 +390,193 @@ void loop() {
 #endif
 
 
-#ifdef I2_SLAVES
-/**
- * \brief           Clears the I2C bus after a lockup
- * \details         
- */
-void clearBus() { 
-  pinMode(SCL_PIN, INPUT_PULLUP);
-  pinMode(SDA_PIN, INPUT_PULLUP);
-
-  if (digitalRead(SDA_PIN) == LOW) { // Check if SDA is held low
-    #ifdef DEBUG
-      Serial.println("Bus lockup detected. Clearing...");
-    #endif
-
-    for (int i = 0; i < 9; i++) { // Toggle SCL to clear lockup
-      pinMode(SCL_PIN, OUTPUT);
-      digitalWrite(SCL_PIN, HIGH);
-      delayMicroseconds(5);
-      digitalWrite(SCL_PIN, LOW);
-      delayMicroseconds(5);
-    }
-
-    // Release SCL and SDA lines after toggling
+#ifdef I2C_SLAVES
+  /**
+  * \brief           Clears the I2C bus after a lockup
+  * \details         
+  */
+  void clearBus() { 
     pinMode(SCL_PIN, INPUT_PULLUP);
     pinMode(SDA_PIN, INPUT_PULLUP);
 
-    // Delay before resuming to allow the bus to stabilize
-    delay(100);
-  }
-  #ifdef DEBUG
-    Serial.println("Bus clearing was attempted");
-  #endif
-}
-
-
-/**
- * \brief           Triggers a power cycle for the ATMegas via PCYCLE_PIN
- * \details         
- */
-void powerCycle(){
-  #ifdef DEBUG
-    Serial.println("Power Cycling Now");
-  #endif
-  digitalWrite(PCYCLE_PIN, HIGH);
-  delay(3000);
-  digitalWrite(PCYCLE_PIN, LOW);
-  delay(3000);
-  #ifdef DEBUG
-    Serial.println("Power Cycling Complete");
-  #endif
-}
-
-
-/**
- * \brief           Performs a handshake with a slave ATMega
- * \details         
- */
-bool performHandshake(int slaveAddress) {
-  unsigned long startTime = millis();
-
-    Wire.beginTransmission(slaveAddress);
-    Wire.write(HANDSHAKE_REQUEST); // Send handshake request
-    Wire.endTransmission();
-    Wire.requestFrom(slaveAddress, 1); // Request 1 byte for handshake acknowledgment
-    delay(100);
-
-  // Wait for acknowledgment within timeout
-  while (millis() - startTime < TIMEOUT_MS) {
-    if(Wire.available()){
-     
-      int ack = Wire.read();
-   
-      if (ack == HANDSHAKE_ACK) {
-        return true; // Handshake successful
-      }
-    }
-    delay(10); // Small delay before retrying
-  }
-  #ifdef DEBUG
-    Serial.println("Handshake failed");
-  #endif
-  return false; // Handshake failed
-}
-
-
-/**
- * \brief
- * \details         
- */
-void prettyPrint(uint8_t c, int bytesReceived){
-  if (bytesReceived%64==0){Serial.println();}
-  if (c<16){Serial.print(0);}
-  Serial.print(c, HEX); // Print each received byte to Serial Monitor
-  Serial.print(" ");
-}
-
-
-/**
- * \brief
- * \details         
- */
-int byteErrorCounter(uint8_t c){
-  int err_count = 0;
-  uint8_t reference_byte = 0x55;
-  uint8_t mask = 0x01;
-  //do a bitwise xor of reference with c. -> the matching bit locations will be zero, the unmatched locations = 1, count the number of 1's in the byte
-  uint8_t xored_byte = reference_byte ^ c; //8'b 0100 1000
-  for (int i = 0; i<8; i++){
-    if ((xored_byte & mask) == 1) {err_count++;} 
-    xored_byte = xored_byte >> 1;
-  }
-  return err_count;
-}
-
-
-/**
- * \brief
- * \details         
- */
-void printerReadSram(long int time_taken, int total_error_count){
-  Serial.println();
-  Serial.print("Time taken for 1 SRAM dump, to compare and store ");
-  Serial.print(time_taken);
-  Serial.println(" ms");
-  Serial.println("\nData reception complete.");
-  Serial.print("Error Count: ");
-  Serial.println(total_error_count);
-  Serial.print("Now printing stores 10% array");
-  for (int i=0; i<ARRAY_SIZE; i++){
-    if (i%64 == 0){Serial.println();}
-    Serial.print(slave1_SRAM[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println();
-}
-
-
-/**
- * \brief
- * \details         
- */
-int readSram(int slaveAddress){
-  //read from slave and append every 10th byte to array_slave + print on screen
-  int bytesReceived = 0;
-  int slave_array_index = 0;
-  int total_error_count = 0;
-  int byte_error_count= 0;
-
-  long int start_time = millis();
-
-  while ((bytesReceived < DATA_SIZE) && (millis()-start_time < TIMEOUT_MS)){
-    Wire.requestFrom(slaveAddress, CHUNK_SIZE); // Request CHUNK_SIZE bytes//keep requesting in chunks of 32 from slave.
-
-    while (Wire.available() && (millis()-start_time < TIMEOUT_MS)) {
-      uint8_t c = Wire.read(); // Read a byte
+    if (digitalRead(SDA_PIN) == LOW) { // Check if SDA is held low
       #ifdef DEBUG
-        prettyPrint(c, bytesReceived); //print it
+        Serial.println("Bus lockup detected. Clearing...");
       #endif
 
-      if (bytesReceived >= 219 && bytesReceived <= 2219){
-        byte_error_count = byteErrorCounter(c); //count number of errors
-        total_error_count = total_error_count + byte_error_count; //increment error count
-
-        if ((bytesReceived%10 == 0) && (slave_array_index < ARRAY_SIZE)){ //append to array
-          if (slaveAddress == SLAVE1_ADDRESS){slave1_SRAM[slave_array_index] = c;}
-          if (slaveAddress == SLAVE2_ADDRESS){slave2_SRAM[slave_array_index] = c;} 
-          slave_array_index++;
-        }
+      for (int i = 0; i < 9; i++) { // Toggle SCL to clear lockup
+        pinMode(SCL_PIN, OUTPUT);
+        digitalWrite(SCL_PIN, HIGH);
+        delayMicroseconds(5);
+        digitalWrite(SCL_PIN, LOW);
+        delayMicroseconds(5);
       }
-      bytesReceived++;
 
-      if (bytesReceived >= DATA_SIZE) {
-        if (slaveAddress == SLAVE1_ADDRESS){errorCount1 = total_error_count;} //set total error count
-        if (slaveAddress == SLAVE2_ADDRESS){errorCount2 = total_error_count;}
-        #ifdef DEBUG
-          printerReadSram(millis()-start_time, total_error_count);
-        #endif
-        return READ_COMPLETE; //return
-      }
+      // Release SCL and SDA lines after toggling
+      pinMode(SCL_PIN, INPUT_PULLUP);
+      pinMode(SDA_PIN, INPUT_PULLUP);
+
+      // Delay before resuming to allow the bus to stabilize
+      delay(100);
     }
+    #ifdef DEBUG
+      Serial.println("Bus clearing was attempted");
+    #endif
   }
 
-  //else if timeout
-  #ifdef DEBUG
+
+  /**
+  * \brief           Triggers a power cycle for the ATMegas via PCYCLE_PIN
+  * \details         
+  */
+  void powerCycle(){
+    #ifdef DEBUG
+      Serial.println("Power Cycling Now");
+    #endif
+    digitalWrite(PCYCLE_PIN, HIGH);
+    delay(3000);
+    digitalWrite(PCYCLE_PIN, LOW);
+    delay(3000);
+    #ifdef DEBUG
+      Serial.println("Power Cycling Complete");
+    #endif
+  }
+
+
+  /**
+  * \brief           Performs a handshake with a slave ATMega
+  * \details         
+  */
+  bool performHandshake(int slaveAddress) {
+    unsigned long startTime = millis();
+
+      Wire.beginTransmission(slaveAddress);
+      Wire.write(HANDSHAKE_REQUEST); // Send handshake request
+      Wire.endTransmission();
+      Wire.requestFrom(slaveAddress, 1); // Request 1 byte for handshake acknowledgment
+      delay(100);
+
+    // Wait for acknowledgment within timeout
+    while (millis() - startTime < TIMEOUT_MS) {
+      if(Wire.available()){
+      
+        int ack = Wire.read();
+    
+        if (ack == HANDSHAKE_ACK) {
+          return true; // Handshake successful
+        }
+      }
+      delay(10); // Small delay before retrying
+    }
+    #ifdef DEBUG
+      Serial.println("Handshake failed");
+    #endif
+    return false; // Handshake failed
+  }
+
+
+  /**
+  * \brief
+  * \details         
+  */
+  void prettyPrint(uint8_t c, int bytesReceived){
+    if (bytesReceived%64==0){Serial.println();}
+    if (c<16){Serial.print(0);}
+    Serial.print(c, HEX); // Print each received byte to Serial Monitor
+    Serial.print(" ");
+  }
+
+
+  /**
+  * \brief
+  * \details         
+  */
+  int byteErrorCounter(uint8_t c){
+    int err_count = 0;
+    uint8_t reference_byte = 0x55;
+    uint8_t mask = 0x01;
+    //do a bitwise xor of reference with c. -> the matching bit locations will be zero, the unmatched locations = 1, count the number of 1's in the byte
+    uint8_t xored_byte = reference_byte ^ c; //8'b 0100 1000
+    for (int i = 0; i<8; i++){
+      if ((xored_byte & mask) == 1) {err_count++;} 
+      xored_byte = xored_byte >> 1;
+    }
+    return err_count;
+  }
+
+
+  /**
+  * \brief
+  * \details         
+  */
+  void printerReadSram(long int time_taken, int total_error_count){
     Serial.println();
-    Serial.println("Timeout: Possible bus lockup detected.");
-  #endif
-  return TIMEOUT;
-}
+    Serial.print("Time taken for 1 SRAM dump, to compare and store ");
+    Serial.print(time_taken);
+    Serial.println(" ms");
+    Serial.println("\nData reception complete.");
+    Serial.print("Error Count: ");
+    Serial.println(total_error_count);
+    Serial.print("Now printing stores 10% array");
+    for (int i=0; i<ARRAY_SIZE; i++){
+      if (i%64 == 0){Serial.println();}
+      Serial.print(slave1_SRAM[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
+  }
+
+
+  /**
+  * \brief
+  * \details         
+  */
+  int readSram(int slaveAddress){
+    //read from slave and append every 10th byte to array_slave + print on screen
+    int bytesReceived = 0;
+    int slave_array_index = 0;
+    int total_error_count = 0;
+    int byte_error_count= 0;
+
+    long int start_time = millis();
+
+    while ((bytesReceived < DATA_SIZE) && (millis()-start_time < TIMEOUT_MS)){
+      Wire.requestFrom(slaveAddress, CHUNK_SIZE); // Request CHUNK_SIZE bytes//keep requesting in chunks of 32 from slave.
+
+      while (Wire.available() && (millis()-start_time < TIMEOUT_MS)) {
+        uint8_t c = Wire.read(); // Read a byte
+        #ifdef DEBUG
+          prettyPrint(c, bytesReceived); //print it
+        #endif
+
+        if (bytesReceived >= 219 && bytesReceived <= 2219){
+          byte_error_count = byteErrorCounter(c); //count number of errors
+          total_error_count = total_error_count + byte_error_count; //increment error count
+
+          if ((bytesReceived%10 == 0) && (slave_array_index < ARRAY_SIZE)){ //append to array
+            if (slaveAddress == SLAVE1_ADDRESS){slave1_SRAM[slave_array_index] = c;}
+            if (slaveAddress == SLAVE2_ADDRESS){slave2_SRAM[slave_array_index] = c;} 
+            slave_array_index++;
+          }
+        }
+        bytesReceived++;
+
+        if (bytesReceived >= DATA_SIZE) {
+          if (slaveAddress == SLAVE1_ADDRESS){errorCount1 = total_error_count;} //set total error count
+          if (slaveAddress == SLAVE2_ADDRESS){errorCount2 = total_error_count;}
+          #ifdef DEBUG
+            printerReadSram(millis()-start_time, total_error_count);
+          #endif
+          return READ_COMPLETE; //return
+        }
+      }
+    }
+
+    //else if timeout
+    #ifdef DEBUG
+      Serial.println();
+      Serial.println("Timeout: Possible bus lockup detected.");
+    #endif
+    return TIMEOUT;
+  }
 #endif
