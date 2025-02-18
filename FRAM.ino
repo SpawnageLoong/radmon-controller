@@ -162,7 +162,8 @@ void Dump_FRAM_Data(int address, int iSize)
   {
     // Read from address
     i8Data = FRAMReadByte(FRAM_CS, i);
-    delayMicroseconds(1);
+    delayMicroseconds(100);
+    //delay(1);
     iInByteCount++;
 
     // Save data starting from the end of the CAN frame
