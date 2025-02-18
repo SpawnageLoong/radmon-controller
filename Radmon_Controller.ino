@@ -31,10 +31,10 @@
 //#define SERIAL_MODE 1
 #define CAN_MODE 1
 //#define DEBUG_CAN 1
-//#define GM_COUNTER 1
-//#define I2C_SLAVES 1
-//#define TIMER 1
-//#define RTC_ON 1
+#define GM_COUNTER 1
+#define I2C_SLAVES 1
+#define TIMER 1
+#define RTC_ON 1
 
 
 //**************************************************************************
@@ -336,10 +336,19 @@ void loop() {
           paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
           paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
           #ifdef DEBUG
-            sprintf(cbuf, "Dumping %i bytes to CAN", paramB);
+            sprintf(cbuf, "Dumping %i bytes to CAN\n", paramB);
             Serial.print(cbuf);
           #endif
           CAN_Dump_FRAM(paramA, paramB);
+          break;
+        
+        case 0x03: // Debugging command
+          paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
+          paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
+          #ifdef DEBUG
+            sprintf(cbuf, "Received debug command, param A=%i, paramB=%i\n", paramA, paramB);
+            Serial.print(cbuf);
+          #endif
           break;
 
         case 0xAA: // Update RTC
@@ -377,9 +386,8 @@ void loop() {
   void gmTubeISR() {
     gmTubeCount++;  // Increment count each time a falling edge is detected
   }
-#endif
 
-#ifdef GM_COUNTER
+
   /**
   * \brief           Callback function to handle dataTimer compare interrupts
   * \details         Updates FRAM and resets current GM Tube count
@@ -389,6 +397,10 @@ void loop() {
       uint32_t now = rtc.getEpoch();
     #else
       uint32_t now = 0;
+    #endif
+    #ifdef DEBUG
+      sprintf(cbuf, "Current time: %i\n", now);
+      Serial.print(cbuf);
     #endif
     uint16_t errCountA = 0;
     uint16_t errCountB = 0;
