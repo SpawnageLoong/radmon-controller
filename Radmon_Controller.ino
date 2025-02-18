@@ -136,8 +136,8 @@ void setup() {
   #endif
 
   // FRAM
-  //pinMode(FRAM_CS,  OUTPUT);
-  //digitalWrite(FRAM_CS, HIGH);
+  pinMode(FRAM_CS,  OUTPUT);
+  digitalWrite(FRAM_CS, HIGH);
 
   // Geiger Counter
   #ifdef GM_COUNTER
@@ -291,6 +291,8 @@ void loop() {
       delay(5000); // Wait before attempting SRAM read again
     }//trigger_else
   #endif
+
+  digitalWrite(GM_PIN_OUT, LOW);
 } //loop end
 
 //**************************************************************************
@@ -385,6 +387,7 @@ void loop() {
   */
   void gmTubeISR() {
     gmTubeCount++;  // Increment count each time a falling edge is detected
+    digitalWrite(GM_PIN_OUT, HIGH);
   }
 
 
