@@ -185,7 +185,7 @@ void setup() {
   #endif
 
   // test setup
-  //pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
 }
 
 //**************************************************************************
