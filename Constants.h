@@ -71,8 +71,8 @@
 #define HANDSHAKE_ACK 0x06
 #define TIMEOUT_MS 3000
 
-#define SCL_PIN SCL
-#define SDA_PIN SDA
+#define SCL_PIN 12
+#define SDA_PIN 11
 
 #define PCYCLE_PIN 6 //to switch on devices, set to low, to switch off set to high
 #define TRIGGER_PIN 8

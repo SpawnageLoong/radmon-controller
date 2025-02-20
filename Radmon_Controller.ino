@@ -73,6 +73,7 @@ volatile uint32_t gmTubeCount = 0;
   int readResult2 = 0;
   volatile uint8_t slave1_SRAM[ARRAY_SIZE];
   volatile uint8_t slave2_SRAM[ARRAY_SIZE];
+  int experimentTimerFlag = 0;
 #endif
 
 // test vars
@@ -99,6 +100,7 @@ volatile bool togglepin = false;
 void canCallback(int packetSize);
 void gmTubeISR();
 void dataTimerCallback();
+void saveDataToFram();
 void readSlaveSRAMs();
 void clearBus();
 void powerCycle();
@@ -116,7 +118,7 @@ void setup() {
   // Serial
   #ifdef DEBUG
     Serial.begin(9600);
-    while (! Serial){}
+    //while (! Serial){}
     Serial.println("\n\n Serial init OK");
   #endif
 
@@ -167,8 +169,8 @@ void setup() {
   // I2C
   #ifdef I2C_SLAVES
     Wire.begin(); // Start I2C as master
-    pinMode(SCL_PIN, INPUT_PULLUP); //for open drain
-    pinMode(SDA_PIN, INPUT_PULLUP); //for open drain
+    //pinMode(SCL_PIN, INPUT_PULLUP); //for open drain
+    //pinMode(SDA_PIN, INPUT_PULLUP); //for open drain
     pinMode(PCYCLE_PIN, OUTPUT);
     digitalWrite(PCYCLE_PIN, LOW); //set low to switch on the atmegas
     pinMode(LOW_PIN, OUTPUT);
@@ -196,21 +198,18 @@ void setup() {
 
 void loop() {
   #ifdef I2C_SLAVES
-    if (digitalRead(TRIGGER_PIN)){//no trigger do nothing
-      #ifdef DEBUG
-        Serial.println("Read Not Triggered");
-      #endif
+    if (!experimentTimerFlag) {
       clearBusCounter = 0;
-      delay(100); //poll ever 100ms
     }
-
-    else{ //triggered, time to get SRAM data
-      readSlaveSRAMs();
-    }//trigger_else
+    else {
+      saveDataToFram();
+      experimentTimerFlag = 0;
+    }
   #endif
 
+  delay(10);
   digitalWrite(GM_PIN_OUT, LOW);
-} //loop end
+}
 
 //**************************************************************************
 // Functions
@@ -300,26 +299,42 @@ void loop() {
 #ifdef GM_COUNTER
   /**
   * \brief           Callback function to handle signals from the Geiger-Muller Tube
-  * \details         Increments gmTubeCount when triggered.
+  * \details         Increments gmTubeCount when triggered. Enables GM_PIN_OUT if DEBUG is set.
   */
   void gmTubeISR() {
     gmTubeCount++;  // Increment count each time a falling edge is detected
-    digitalWrite(GM_PIN_OUT, HIGH);
-    //Serial.println("Cancer");
+    #ifdef DEBUG
+      digitalWrite(GM_PIN_OUT, HIGH);
+    #endif
   }
 
 
   /**
   * \brief           Callback function to handle dataTimer compare interrupts
-  * \details         Updates FRAM and resets current GM Tube count
+  * \details         Updates FRAM and resets current GM Tube count. Toggles the builtin LED if DEBUG is set.
   */
   void dataTimerCallback(void) {
-    digitalWrite(LED_BUILTIN, togglepin);
-    togglepin = !togglepin;
+    #ifdef DEBUG
+      digitalWrite(LED_BUILTIN, togglepin);
+      togglepin = !togglepin;
+    #endif
     if (secondsCounter < 60) {
+      #ifdef DEBUG
+        Serial.println("SRAM read not triggered");
+      #endif
       secondsCounter++;
       return;
     }
+    experimentTimerFlag = 1;
+  }
+
+
+  /**
+  * \brief           Gets experiment data and saves it to FRAM.
+  * \details         
+  */
+  void saveDataToFram(void) {
+    readSlaveSRAMs();
     #ifdef RTC_ON
       uint32_t now = rtc.getEpoch();
     #else
@@ -329,8 +344,8 @@ void loop() {
       sprintf(cbuf, "GM count: %i, Current time: %i\n", gmTubeCount, now);
       Serial.print(cbuf);
     #endif
-    uint16_t errCountA = 0;
-    uint16_t errCountB = 0;
+    uint16_t errCountA = (uint16_t)errorCount1;
+    uint16_t errCountB = (uint16_t)errorCount2;
     uint32_t errCountMerged = ((uint32_t)errCountA << 16 | (uint32_t)errCountB);
     int fixedFrame[] = { now, gmTubeCount, errCountMerged };
     //uint32_t testDataA[64];
@@ -343,10 +358,12 @@ void loop() {
     gmTubeCount = 0;
     secondsCounter = 0;
   }
+
 #endif
 
 
 #ifdef I2C_SLAVES
+
   /**
    * \brief           Reads the SRAMs of the two slave ATMegas
    * \details         
@@ -498,14 +515,17 @@ void loop() {
   */
   bool performHandshake(int slaveAddress) {
     unsigned long startTime = millis();
-
+    Serial.println("debug 1");
       Wire.beginTransmission(slaveAddress);
       Wire.write(HANDSHAKE_REQUEST); // Send handshake request
       Wire.endTransmission();
+      Serial.println("debug 2");
+      delay(100);
       Wire.requestFrom(slaveAddress, 1); // Request 1 byte for handshake acknowledgment
       delay(100);
 
     // Wait for acknowledgment within timeout
+    Serial.println("debug 3");
     while (millis() - startTime < TIMEOUT_MS) {
       if(Wire.available()){
       
@@ -515,7 +535,7 @@ void loop() {
           return true; // Handshake successful
         }
       }
-      delay(10); // Small delay before retrying
+      delay(100); // Small delay before retrying
     }
     #ifdef DEBUG
       Serial.println("Handshake failed");
