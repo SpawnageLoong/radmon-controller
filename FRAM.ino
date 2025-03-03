@@ -40,7 +40,9 @@ void Clear_FRAM_Data(int iSize)
 {
   int temp=0;
   
-  Serial.print("\n Start clearing FRAM... \n"); // for debug
+  #ifdef DEBUG
+    Serial.print("\n Start clearing FRAM... \n"); // for debug
+  #endif
   pinMode(FRAM_CS, OUTPUT);
   digitalWrite(FRAM_CS, HIGH);
   SPI.begin();
@@ -54,7 +56,9 @@ void Clear_FRAM_Data(int iSize)
   SPI.endTransaction();
 
   //check if FRAM is cleared successfully
-  Serial.print("\n FRAM check started! \n");
+  #ifdef DEBUG
+    Serial.print("\n FRAM check started! \n");
+  #endif
   SPI.beginTransaction(SPISettings(SPI_MAX_SPEED, SPI_DATA_ORDER, SPI_DATA_MODE));
 
   for(int i=FRAM_BASE_ADDRESS; i<iSize; i++)
@@ -64,10 +68,13 @@ void Clear_FRAM_Data(int iSize)
   }
   SPI.endTransaction();
 
-  if (temp != 0) Serial.println("\n FRAM is not cleared!");
-  else Serial.println("\n FRAM cleared! ");
+  #ifdef DEBUG
+    if (temp != 0) Serial.println("\n FRAM is not cleared!");
+    else Serial.println("\n FRAM cleared! ");
+  #endif
   //checking FRAM ended
 
+  is_FRAM_full = false;
 }
 
 

@@ -52,6 +52,7 @@ uint8_t data[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 // FRAM
 int rollingAddress = 0x0000;
 volatile uint32_t gmTubeCount = 0;
+bool is_FRAM_full = false;
 
 // Timer
 #ifdef TIMER
@@ -202,7 +203,7 @@ void setup() {
 
 void loop() {
   #ifdef I2C_SLAVES
-    if (!experimentTimerFlag || is_executing_cmd) {
+    if (!experimentTimerFlag || is_executing_cmd || is_FRAM_full) {
       clearBusCounter = 0;
     }
     else {
@@ -401,7 +402,10 @@ void canCallback(int packetSize) {
     Store_Data_To_FRAM(rollingAddress, fixedFrame, sizeof(fixedFrame));
     rollingAddress += sizeof(fixedFrame);
     if (rollingAddress >= 0x7FF){
-      rollingAddress = 0;
+      is_FRAM_full = true;
+      #ifdef DEBUG
+        Serial.println("FRAM is now full.");
+      #endif
     }
     gmTubeCount = 0;
     secondsCounter = 0;
