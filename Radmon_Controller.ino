@@ -28,9 +28,8 @@
 // Compile Flags
 //**************************************************************************
 #define DEBUG 1
-//#define SERIAL_MODE 1
 #define CAN_MODE 1
-//#define DEBUG_CAN 1
+#define DEBUG_CAN 1
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
 #define TIMER 1
@@ -164,7 +163,7 @@ void setup() {
   // CAN
   #ifdef CAN_MODE
     CAN.setPins(CAN_PIN_CS, CAN_PIN_INT);
-    //CAN.setClockFrequency(8E6);
+    CAN.setClockFrequency(8E6);
     CAN.filter(CAN_REC_ID);
     while (!CAN.begin(500E3)){
       #ifdef DEBUG
