@@ -297,33 +297,6 @@ void canCallback(int packetSize) {
         CAN.endPacket();
         break;
 
-/*
-      case 0x01: // Dump full FRAM data; 32 KBYTE; from 0x0000_0000 to 0x0000_7FFF
-        #ifdef DEBUG
-          Serial.print("dumping 32kB");
-        #endif
-        CAN_Dump_FRAM(0x0000, 0x8000);
-        break;
-      
-      case 0x02: // Dump selected section of FRAM
-        paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
-        paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
-        #ifdef DEBUG
-          sprintf(cbuf, "Dumping %i bytes to CAN\n", paramB);
-          Serial.print(cbuf);
-        #endif
-        CAN_Dump_FRAM(paramA, paramB);
-        break;
-      
-      case 0x03: // Debugging command
-        paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
-        paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
-        #ifdef DEBUG
-          sprintf(cbuf, "Received debug command, param A=%i, paramB=%i\n", paramA, paramB);
-          Serial.print(cbuf);
-        #endif
-        break;
-
       case 0xAA: // Update RTC
         #ifdef RTC_ON
           ts = ((uint32_t)in_arr[1] << 24 | (uint32_t)in_arr[2] << 16 | (uint32_t)in_arr[3] << 8 | (uint32_t)in_arr[4]);
@@ -332,6 +305,23 @@ void canCallback(int packetSize) {
             sprintf(cbuf, "Updated RTC to %i", ts);
             Serial.print(cbuf);
           #endif
+        #endif
+
+        rsp[0] = 0x01; // Response identifier
+        rsp[1] = 0xAA; // Cmd identifier
+        rsp[2] = 0xFF; // Cmd success
+        CAN.beginPacket(CAN_SEND_ID);
+        CAN.write(rsp, 8);
+        CAN.endPacket();
+        break;
+
+/*
+      case 0x03: // Debugging command
+        paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
+        paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
+        #ifdef DEBUG
+          sprintf(cbuf, "Received debug command, param A=%i, paramB=%i\n", paramA, paramB);
+          Serial.print(cbuf);
         #endif
         break;
 */
