@@ -28,7 +28,6 @@
 // Compile Flags
 //**************************************************************************
 #define DEBUG 1
-#define CAN_MODE 1
 #define DEBUG_CAN 1
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
@@ -131,6 +130,11 @@ void setup() {
     pinMode(GM_PIN_OUT, OUTPUT);
   #endif
 
+  // Builtin LED for 1-sec timer
+  #ifdef DEBUG
+    pinMode(LED_BUILTIN, OUTPUT);
+  #endif
+
   // Timer
   #ifdef TIMER
     dataTimer.enable(false);
@@ -146,6 +150,7 @@ void setup() {
   // RTC
   #ifdef RTC_ON
     rtc.begin();
+    rtc.setEpoch(0);
   #endif
 
   // I2C
@@ -161,25 +166,18 @@ void setup() {
   #endif
 
   // CAN
-  #ifdef CAN_MODE
-    CAN.setPins(CAN_PIN_CS, CAN_PIN_INT);
-    CAN.setClockFrequency(8E6);
-    CAN.filter(CAN_REC_ID);
-    while (!CAN.begin(500E3)){
-      #ifdef DEBUG
-        Serial.println("Starting CAN failed!");
-      #endif
-      delay(1000);
-    }
-    CAN.onReceive(canCallback);
+  CAN.setPins(CAN_PIN_CS, CAN_PIN_INT);
+  CAN.setClockFrequency(8E6);
+  CAN.filter(CAN_REC_ID);
+  while (!CAN.begin(500E3)){
     #ifdef DEBUG
-      Serial.println("CAN init OK");
+      Serial.println("Starting CAN failed!");
     #endif
-  #endif
-
-  // Init success
+    delay(1000);
+  }
+  CAN.onReceive(canCallback);
   #ifdef DEBUG
-    Serial.println("Init end");
+    Serial.println("CAN init OK");
   #endif
 
   // Attach interrupts
@@ -187,9 +185,9 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(GM_PIN_INT), gmTubeISR, FALLING);
   #endif
 
-  // Builtin LED for 1-sec timer
+  // Init success
   #ifdef DEBUG
-    pinMode(LED_BUILTIN, OUTPUT);
+    Serial.println("Init end");
   #endif
 }
 
@@ -208,93 +206,94 @@ void loop() {
     }
   #endif
 
+  #ifdef DEBUG
+    digitalWrite(GM_PIN_OUT, LOW);
+  #endif
+
   delay(10);
-  digitalWrite(GM_PIN_OUT, LOW);
 }
 
 //**************************************************************************
 // Functions
 //**************************************************************************
 
-#ifdef CAN_MODE
-  /**
-  * \brief           Callback function to handle received CAN packets
-  * \details         
-  */
-  void canCallback(int packetSize) {
-    #ifdef DEBUG_CAN
-      Serial.print("Received ");
-      while (CAN.available()) {
-        Serial.println((char)CAN.read(), HEX);
+/**
+* \brief           Callback function to handle received CAN packets
+* \details         
+*/
+void canCallback(int packetSize) {
+  #ifdef DEBUG_CAN
+    Serial.print("Received ");
+    while (CAN.available()) {
+      Serial.println((char)CAN.read(), HEX);
+    }
+  #else
+    uint8_t packetDlc = CAN.packetDlc();
+    uint8_t in_arr[packetDlc];
+    CAN.readBytes(in_arr, packetDlc);
+    #ifdef DEBUG
+      sprintf(cbuf, "Frame data: %X", in_arr[0]);
+      for (int i=1; i<packetDlc; i++) {
+        sprintf(cbuf + strlen(cbuf), ", %X", in_arr[i]);
       }
-    #else
-      uint8_t packetDlc = CAN.packetDlc();
-      uint8_t in_arr[packetDlc];
-      CAN.readBytes(in_arr, packetDlc);
-      #ifdef DEBUG
-        sprintf(cbuf, "Frame data: %X", in_arr[0]);
-        for (int i=1; i<packetDlc; i++) {
-          sprintf(cbuf + strlen(cbuf), ", %X", in_arr[i]);
-        }
-        sprintf(cbuf + strlen(cbuf), "\n");
-        Serial.print(cbuf);
-      #endif
-      iInputChar = in_arr[0];
-      uint16_t paramA = 0;
-      uint16_t paramB = 0;
-      uint32_t ts;
-      switch(iInputChar) {
-        case 0x01: // Dump full FRAM data; 32 KBYTE; from 0x0000_0000 to 0x0000_7FFF
-          #ifdef DEBUG
-            Serial.print("dumping 32kB");
-          #endif
-          CAN_Dump_FRAM(0x0000, 0x8000);
-          break;
-        
-        case 0x02: // Dump selected section of FRAM
-          paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
-          paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
-          #ifdef DEBUG
-            sprintf(cbuf, "Dumping %i bytes to CAN\n", paramB);
-            Serial.print(cbuf);
-          #endif
-          CAN_Dump_FRAM(paramA, paramB);
-          break;
-        
-        case 0x03: // Debugging command
-          paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
-          paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
-          #ifdef DEBUG
-            sprintf(cbuf, "Received debug command, param A=%i, paramB=%i\n", paramA, paramB);
-            Serial.print(cbuf);
-          #endif
-          break;
-
-        case 0xAA: // Update RTC
-          #ifdef RTC_ON
-            ts = ((uint32_t)in_arr[1] << 24 | (uint32_t)in_arr[2] << 16 | (uint32_t)in_arr[3] << 8 | (uint32_t)in_arr[4]);
-            rtc.setEpoch(ts);
-            #ifdef DEBUG
-              sprintf(cbuf, "Updated RTC to %i", ts);
-              Serial.print(cbuf);
-            #endif
-          #endif
-          break;
-
-        default: // Unknown command
-          #ifdef DEBUG
-            Serial.println("Unknown command");
-          #endif
-          err[1] = 0x01;
-          CAN.beginPacket(CAN_SEND_ID);
-          CAN.write(err, 8);
-          CAN.endPacket();
-          break;
-      }
-      iInputChar = NULL;
+      sprintf(cbuf + strlen(cbuf), "\n");
+      Serial.print(cbuf);
     #endif
-  }
-#endif
+    iInputChar = in_arr[0];
+    uint16_t paramA = 0;
+    uint16_t paramB = 0;
+    uint32_t ts;
+    switch(iInputChar) {
+      case 0x01: // Dump full FRAM data; 32 KBYTE; from 0x0000_0000 to 0x0000_7FFF
+        #ifdef DEBUG
+          Serial.print("dumping 32kB");
+        #endif
+        CAN_Dump_FRAM(0x0000, 0x8000);
+        break;
+      
+      case 0x02: // Dump selected section of FRAM
+        paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
+        paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
+        #ifdef DEBUG
+          sprintf(cbuf, "Dumping %i bytes to CAN\n", paramB);
+          Serial.print(cbuf);
+        #endif
+        CAN_Dump_FRAM(paramA, paramB);
+        break;
+      
+      case 0x03: // Debugging command
+        paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
+        paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
+        #ifdef DEBUG
+          sprintf(cbuf, "Received debug command, param A=%i, paramB=%i\n", paramA, paramB);
+          Serial.print(cbuf);
+        #endif
+        break;
+
+      case 0xAA: // Update RTC
+        #ifdef RTC_ON
+          ts = ((uint32_t)in_arr[1] << 24 | (uint32_t)in_arr[2] << 16 | (uint32_t)in_arr[3] << 8 | (uint32_t)in_arr[4]);
+          rtc.setEpoch(ts);
+          #ifdef DEBUG
+            sprintf(cbuf, "Updated RTC to %i", ts);
+            Serial.print(cbuf);
+          #endif
+        #endif
+        break;
+
+      default: // Unknown command
+        #ifdef DEBUG
+          Serial.println("Unknown command");
+        #endif
+        err[1] = 0x01;
+        CAN.beginPacket(CAN_SEND_ID);
+        CAN.write(err, 8);
+        CAN.endPacket();
+        break;
+    }
+    iInputChar = NULL;
+  #endif
+}
 
 
 #ifdef GM_COUNTER
