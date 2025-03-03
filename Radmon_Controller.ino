@@ -122,23 +122,6 @@ void setup() {
     Serial.println("\n\n Serial init OK");
   #endif
 
-  // CAN
-  #ifdef CAN_MODE
-    CAN.setPins(CAN_PIN_CS, CAN_PIN_INT);
-    //CAN.setClockFrequency(8E6);
-    CAN.filter(CAN_REC_ID);
-    while (!CAN.begin(500E3)){
-      #ifdef DEBUG
-        Serial.println("Starting CAN failed!");
-      #endif
-      delay(1000);
-    }
-    CAN.onReceive(canCallback);
-    #ifdef DEBUG
-      Serial.println("CAN init OK");
-    #endif
-  #endif
-
   // FRAM
   pinMode(FRAM_CS,  OUTPUT);
   digitalWrite(FRAM_CS, HIGH);
@@ -178,6 +161,23 @@ void setup() {
     pinMode(TRIGGER_PIN, INPUT_PULLUP); //set pin high unless external drives it low.
   #endif
 
+  // CAN
+  #ifdef CAN_MODE
+    CAN.setPins(CAN_PIN_CS, CAN_PIN_INT);
+    //CAN.setClockFrequency(8E6);
+    CAN.filter(CAN_REC_ID);
+    while (!CAN.begin(500E3)){
+      #ifdef DEBUG
+        Serial.println("Starting CAN failed!");
+      #endif
+      delay(1000);
+    }
+    CAN.onReceive(canCallback);
+    #ifdef DEBUG
+      Serial.println("CAN init OK");
+    #endif
+  #endif
+
   // Init success
   #ifdef DEBUG
     Serial.println("Init end");
@@ -188,8 +188,10 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(GM_PIN_INT), gmTubeISR, FALLING);
   #endif
 
-  // test setup
-  pinMode(LED_BUILTIN, OUTPUT);
+  // Builtin LED for 1-sec timer
+  #ifdef DEBUG
+    pinMode(LED_BUILTIN, OUTPUT);
+  #endif
 }
 
 //**************************************************************************
