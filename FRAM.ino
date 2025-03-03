@@ -74,7 +74,7 @@ void Clear_FRAM_Data(int iSize)
 /**
  * \brief           Dumps full FRAM data to Serial
  * \param[in]       iSize: Number of bytes to dump
- * \details         Reads a given number of bytes from FRAM and dumps the values via CAN, starting at address 0x0000_0000. Use const FRAM_SIZE to dump entire FRAM, ending at 0x0000_7FFF.
+ * \details         Reads a given number of bytes from FRAM and dumps the values via Serial, starting at address 0x0000_0000. Use const FRAM_SIZE to dump entire FRAM, ending at 0x0000_7FFF.
  */
 void Dump_FRAM_Data(int iSize)
 {
@@ -141,7 +141,7 @@ void Dump_FRAM_Data_CAN(int iSize)
   int temp=0;
   
   #ifdef DEBUG
-    Serial.println(" Dump_FRAM_Data "); // for debug
+    Serial.println(" Dump_FRAM_Data ");
   #endif
   pinMode(FRAM_CS, OUTPUT);
   digitalWrite(FRAM_CS, HIGH);
@@ -151,11 +151,15 @@ void Dump_FRAM_Data_CAN(int iSize)
 
   for(int i=FRAM_BASE_ADDRESS; i < iSize; i++)
   {
-    if (i%32 == 0)
+    if (i%4 == 0)
     {
-      Serial.println();
-      sprintf(cbuf, " Addr 0x%08X : ", i);
-      Serial.print(cbuf);
+      CAN.beginPacket(CAN_SEND_ID);
+      uint8_t i_high = (i >> 8) & 0xFF;
+      uint8_t i_low = i & 0xFF;
+      CAN.write(CAN_DATA_FRAME_ID);
+      CAN.write(i_high);
+      CAN.write(i_low);
+      CAN.write(0x00); // Unused byte
     }
     // read from address
     i8Data <<= 8;
@@ -166,17 +170,14 @@ void Dump_FRAM_Data_CAN(int iSize)
     // 4 read means read back 32bits data.
     if (iInByteCount == 4)
     {
-        // Reverse the bytes:
-        // 32bits data send to SD card is 0x12345678 with 0x78 send first
-        // data read back is 0x78563412, so need to reverse it
-        int i8Rev=0;
-        for (int i = 0; i < 4; i++)
-        {
-            i8Rev = (i8Rev << 8) | ((i8Data >> (i * 8)) & 0xFF);
-        }
+        uint8_t i8Bytes[4];
+        i8Bytes[0] = i8Data & 0xFF;
+        i8Bytes[1] = (i8Data >> 8) & 0xFF;
+        i8Bytes[2] = (i8Data >> 16) & 0xFF;
+        i8Bytes[3] = (i8Data >> 24) & 0xFF;
 
-        sprintf(cbuf, " 0x%08X", i8Rev);
-        Serial.print(cbuf);
+        CAN.write(i8Bytes, 4);
+        CAN.endPacket();
 
         iInByteCount = 0;
         i8Data = 0;
@@ -184,6 +185,10 @@ void Dump_FRAM_Data_CAN(int iSize)
   }
 
   SPI.endTransaction();
+
+  #ifdef DEBUG
+    Serial.println("Dump completed");
+  #endif
 
   return;
 }

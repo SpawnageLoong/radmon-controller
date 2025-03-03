@@ -29,8 +29,8 @@
 //**************************************************************************
 #define DEBUG 1
 //#define DEBUG_CAN 1
-#define DUMP_SERIAL 1
-//#define DUMP_CAN 1
+//#define DUMP_SERIAL 1
+#define DUMP_CAN 1
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
 #define TIMER 1
@@ -377,7 +377,7 @@ void canCallback(int packetSize) {
     #endif
     if (secondsCounter < 60) {
       #ifdef DEBUG
-        Serial.println("SRAM read not triggered");
+        //Serial.println("SRAM read not triggered");
       #endif
       secondsCounter++;
       return;

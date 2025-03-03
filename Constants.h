@@ -24,10 +24,11 @@
 // MCP2515 Defines
 //**************************************************************************
 
-#define CAN_PIN_CS    7       // CS Pin
-#define CAN_PIN_INT   1       // INT Pin (INT[10])
-#define CAN_REC_ID    0x010   // Frame ID for CAN packets with ZSOM as destination
-#define CAN_SEND_ID   0x011   // Frame ID for CAN packets with ZSOM as origin
+#define CAN_PIN_CS            7       // CS Pin
+#define CAN_PIN_INT           1       // INT Pin (INT[10])
+#define CAN_REC_ID            0x010   // Frame ID for CAN packets with ZSOM as destination
+#define CAN_SEND_ID           0x011   // Frame ID for CAN packets with ZSOM as origin
+#define CAN_DATA_FRAME_ID     0x02    // Type identifier for data frames
 
 //**************************************************************************
 // ZSOM/FRAM Defines
