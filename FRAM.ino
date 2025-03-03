@@ -298,8 +298,7 @@ void FRAMWrite32(int CS_pin, int address, int value, int N_BYTE) {
  * \brief           
  * \param[in]       iSize: 
  */
-void Initialize_FRAM(int iSize, int iEvenWord, int iOddWord)
-{
+void Initialize_FRAM(int iSize, int iEvenWord, int iOddWord) {
     sprintf(cbuf, "    Initialize_FRAM();  Size: %04dbyte, EvenWords: 0x%08X, OddWords: 0x%08X \n", iSize*sizeof(int), iEvenWord, iOddWord);
     Serial.print(cbuf);
 
@@ -314,8 +313,7 @@ void Initialize_FRAM(int iSize, int iEvenWord, int iOddWord)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Note: A word is 4 bytes
-void Custom_Data_Init_FRAM(int iSize)
-{
+void Custom_Data_Init_FRAM(int iSize) {
     sprintf(cbuf, "Custom_Data_Init_FRAM();  Size: %04dbyte \n", iSize*sizeof(int));
     Serial.print(cbuf);
 
@@ -348,8 +346,7 @@ void Custom_Data_Init_FRAM(int iSize)
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void Read_Data_From_FRAM(int iAddress, int *iArray, int iSize)
-{
+void Read_Data_From_FRAM(int iAddress, int *iArray, int iSize) {
   int iInByteCount = 0;
   int i8Data = 0;
 

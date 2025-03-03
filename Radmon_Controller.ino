@@ -192,6 +192,7 @@ void setup() {
   // Init success
   #ifdef DEBUG
     Serial.println("Init end");
+    Clear_FRAM_Data(FRAM_SIZE);
   #endif
 }
 
@@ -398,7 +399,7 @@ void canCallback(int packetSize) {
     //uint32_t testDataA[64];
     //uint32_t testDataB[64];
     Store_Data_To_FRAM(rollingAddress, fixedFrame, sizeof(fixedFrame));
-    rollingAddress += 12; // temp value, 12 bytes
+    rollingAddress += sizeof(fixedFrame);
     if (rollingAddress >= 0x7FF){
       rollingAddress = 0;
     }
