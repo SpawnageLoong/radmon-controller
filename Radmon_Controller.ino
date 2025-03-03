@@ -299,6 +299,26 @@ void canCallback(int packetSize) {
         CAN.endPacket();
         break;
 
+      case 0x04: // Dumps the first 512 bytes of FRAM
+        #ifdef DEBUG
+          Serial.println("0x02 received, dumping FRAM");
+        #endif
+
+        #ifdef DUMP_SERIAL
+          Dump_FRAM_Data(512);
+        #endif
+        #ifdef DUMP_CAN
+          Dump_FRAM_Data_CAN(512);
+        #endif
+
+        rsp[0] = 0x01; // Response identifier
+        rsp[1] = 0x04; // Cmd identifier
+        rsp[2] = 0xFF; // Cmd success
+        CAN.beginPacket(CAN_SEND_ID);
+        CAN.write(rsp, 8);
+        CAN.endPacket();
+        break;
+
       case 0xAA: // Update RTC
         #ifdef RTC_ON
           ts = ((uint32_t)in_arr[1] << 24 | (uint32_t)in_arr[2] << 16 | (uint32_t)in_arr[3] << 8 | (uint32_t)in_arr[4]);
