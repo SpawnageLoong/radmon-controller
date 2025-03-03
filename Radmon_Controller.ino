@@ -28,7 +28,7 @@
 // Compile Flags
 //**************************************************************************
 #define DEBUG 1
-#define DEBUG_CAN 1
+//#define DEBUG_CAN 1
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
 #define TIMER 1
@@ -40,13 +40,15 @@
 //**************************************************************************
 
 // IO
-char cbuf[100];
+bool is_executing_cmd = false;
 uint8_t iInputChar;
 uint8_t data[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-uint8_t err[] = { 0xEE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+#ifdef DEBUG
+  char cbuf[100];
+#endif
 
 // FRAM
-volatile int rollingAddress = 0x0000;
+int rollingAddress = 0x0000;
 volatile uint32_t gmTubeCount = 0;
 
 // Timer
@@ -71,7 +73,7 @@ volatile uint32_t gmTubeCount = 0;
   int readResult2 = 0;
   volatile uint8_t slave1_SRAM[ARRAY_SIZE];
   volatile uint8_t slave2_SRAM[ARRAY_SIZE];
-  int experimentTimerFlag = 0;
+  bool experimentTimerFlag = 0;
 #endif
 
 // test vars
@@ -197,12 +199,12 @@ void setup() {
 
 void loop() {
   #ifdef I2C_SLAVES
-    if (!experimentTimerFlag) {
+    if (!experimentTimerFlag || is_executing_cmd) {
       clearBusCounter = 0;
     }
     else {
       saveDataToFram();
-      experimentTimerFlag = 0;
+      experimentTimerFlag = false;
     }
   #endif
 
@@ -210,6 +212,7 @@ void loop() {
     digitalWrite(GM_PIN_OUT, LOW);
   #endif
 
+  is_executing_cmd = false;
   delay(10);
 }
 
@@ -243,7 +246,51 @@ void canCallback(int packetSize) {
     uint16_t paramA = 0;
     uint16_t paramB = 0;
     uint32_t ts;
+    uint8_t rsp[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    if (is_executing_cmd) {
+      #ifdef DEBUG
+        Serial.println("Device busy, discarding cmd");
+      #endif
+      rsp[0] = 0xEE; // Response identifier
+      rsp[1] = 0x02; // Error identifier
+      CAN.beginPacket(CAN_SEND_ID);
+      CAN.write(rsp, 8);
+      CAN.endPacket();
+      return;
+    }
+    is_executing_cmd = true;
     switch(iInputChar) {
+      case 0x01: // Clear entire FRAM, reset rolling address to 0
+        #ifdef DEBUG
+          Serial.println("0x01 received, clearing FRAM and resetting address.");
+        #endif
+
+        Clear_FRAM_Data(FRAM_SIZE);
+
+        rsp[0] = 0x01; // Response identifier
+        rsp[1] = 0x01; // Cmd identifier
+        rsp[2] = 0xFF; // Cmd success
+        CAN.beginPacket(CAN_SEND_ID);
+        CAN.write(rsp, 8);
+        CAN.endPacket();
+        break;
+      
+      case 0x02: // Dumps entire FRAM
+        #ifdef DEBUG
+          Serial.println("0x02 received, dumping FRAM");
+        #endif
+
+        Dump_FRAM_Data(FRAM_SIZE)
+
+        rsp[0] = 0x01; // Response identifier
+        rsp[1] = 0x02; // Cmd identifier
+        rsp[2] = 0xFF; // Cmd success
+        CAN.beginPacket(CAN_SEND_ID);
+        CAN.write(rsp, 8);
+        CAN.endPacket();
+        break;
+
+/*
       case 0x01: // Dump full FRAM data; 32 KBYTE; from 0x0000_0000 to 0x0000_7FFF
         #ifdef DEBUG
           Serial.print("dumping 32kB");
@@ -280,14 +327,17 @@ void canCallback(int packetSize) {
           #endif
         #endif
         break;
+*/
 
       default: // Unknown command
         #ifdef DEBUG
           Serial.println("Unknown command");
         #endif
-        err[1] = 0x01;
+
+        rsp[0] = 0xEE;
+        rsp[1] = 0x01;
         CAN.beginPacket(CAN_SEND_ID);
-        CAN.write(err, 8);
+        CAN.write(rsp, 8);
         CAN.endPacket();
         break;
     }
@@ -325,7 +375,7 @@ void canCallback(int packetSize) {
       secondsCounter++;
       return;
     }
-    experimentTimerFlag = 1;
+    experimentTimerFlag = true;
   }
 
 
