@@ -127,36 +127,36 @@ void Dump_FRAM_Data(int iSize)
 
   return;
 }
-/*
-void Dump_FRAM_Data(int address, int iSize)
+
+
+/**
+ * \brief           Dumps full FRAM data to CAN
+ * \param[in]       iSize: Number of bytes to dump
+ * \details         Reads a given number of bytes from FRAM and dumps the values via CAN, starting at address 0x0000_0000. Use const FRAM_SIZE to dump entire FRAM, ending at 0x0000_7FFF.
+ */
+void Dump_FRAM_Data_CAN(int iSize)
 {
   int iInByteCount = 0;
   int i8Data = 0;
   int temp=0;
-
-  uint8_t data[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-  int endAddress = 0x7FFF;
-  if (address + iSize - 1 < endAddress) {
-    endAddress = address + iSize - 1;
-  }
   
-  Serial.println(" Dump_FRAM_Data "); // for debug
+  #ifdef DEBUG
+    Serial.println(" Dump_FRAM_Data "); // for debug
+  #endif
   pinMode(FRAM_CS, OUTPUT);
   digitalWrite(FRAM_CS, HIGH);
   SPI.begin();
 
   SPI.beginTransaction(SPISettings(SPI_MAX_SPEED, SPI_DATA_ORDER, SPI_DATA_MODE));
 
-  for(int i=address; i < endAddress; i++)
+  for(int i=FRAM_BASE_ADDRESS; i < iSize; i++)
   {
-    
     if (i%32 == 0)
     {
       Serial.println();
       sprintf(cbuf, " Addr 0x%08X : ", i);
       Serial.print(cbuf);
     }
-    
     // read from address
     i8Data <<= 8;
     i8Data |= FRAMRead32( FRAM_CS, i);
@@ -187,73 +187,6 @@ void Dump_FRAM_Data(int address, int iSize)
 
   return;
 }
-*/
-
-
-/**
- * \brief           Dumps a given length of data from FRAM to the CAN interface
- * \param[in]       address: Starting memory address
- * \param[in]       iSize: Length of data (in bytes) to dump
- * \details         
- */
- void CAN_Dump_FRAM(uint16_t address, uint16_t iSize)
- {
-  uint8_t iInByteCount = 0;
-  uint8_t i8Data = 0;
-
-  // CAN Frame data
-  uint8_t data[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-
-  // Check that end address stays within 32kB
-  uint16_t endAddress = 0x7FFF;
-  if (address + iSize - 1 < endAddress) {
-    endAddress = address + iSize - 1;
-  }
-  
-  // Prepare SPI for FRAM read
-  pinMode(FRAM_CS, OUTPUT);
-  digitalWrite(FRAM_CS, HIGH);
-  SPI.begin();
-  SPI.beginTransaction(SPISettings(SPI_MAX_SPEED, SPI_DATA_ORDER, SPI_DATA_MODE));
-
-  for(uint16_t i = address; i <= endAddress; i++)
-  {
-    // Read from address
-    i8Data = FRAMReadByte(FRAM_CS, i);
-    delayMicroseconds(100);
-    //delay(1);
-    iInByteCount++;
-
-    // Save data starting from the end of the CAN frame
-    // Words are reveresed when saving, so write from the end to un-reverse it
-    data[sizeof(data) - iInByteCount] = i8Data;
-    if (iInByteCount == 4)
-    {
-      // Split starting address into two 8-bit values
-      uint16_t startAddress = i - 3;
-      uint16_t addressL = startAddress & 0x00FF;
-      uint16_t addressH = (startAddress & 0xFF00) >> 8;
-      data[1] = addressH;
-      data[2] = addressL;
-      CAN.beginPacket(CAN_SEND_ID);
-      CAN.write(data, sizeof(data));
-      CAN.endPacket();
-      iInByteCount = 0;
-      for (uint8_t j = 1; j < 8; j++)
-      {
-        data[j] = 0;
-      }
-    }
-    i8Data = 0;
-    if (i == 0x7FFE) {
-      break;
-    }
-  }
-
-  SPI.endTransaction();
-
-  return;
- }
 
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

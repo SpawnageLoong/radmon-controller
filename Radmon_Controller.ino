@@ -29,6 +29,8 @@
 //**************************************************************************
 #define DEBUG 1
 //#define DEBUG_CAN 1
+#define DUMP_SERIAL 1
+//#define DUMP_CAN 1
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
 #define TIMER 1
@@ -280,7 +282,12 @@ void canCallback(int packetSize) {
           Serial.println("0x02 received, dumping FRAM");
         #endif
 
-        Dump_FRAM_Data(FRAM_SIZE)
+        #ifdef DUMP_SERIAL
+          Dump_FRAM_Data(FRAM_SIZE);
+        #endif
+        #ifdef DUMP_CAN
+          Dump_FRAM_Data_CAN(FRAM_SIZE);
+        #endif
 
         rsp[0] = 0x01; // Response identifier
         rsp[1] = 0x02; // Cmd identifier
