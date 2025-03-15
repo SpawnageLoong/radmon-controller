@@ -27,13 +27,14 @@
 //**************************************************************************
 // Compile Flags
 //**************************************************************************
-#define DEBUG 1
+//define DEBUG 1
 //define DEBUG_CAN 1
 //define DUMP_SERIAL 1
 #define DUMP_CAN 1
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
 #define TIMER 1
+#define TIMER_LED 1
 #define RTC_ON 1
 
 
@@ -68,7 +69,7 @@ bool is_FRAM_full = false;
 #endif
 
 // I2C
-# ifdef I2C_SLAVES
+#ifdef I2C_SLAVES
   int clearBusCounter = 0;
   int handshake1 = 0;
   int handshake2 = 0;
@@ -138,7 +139,7 @@ void setup() {
   #endif
 
   // Builtin LED for 1-sec timer
-  #ifdef DEBUG
+  #ifdef TIMER_LED
     pinMode(LED_BUILTIN, OUTPUT);
   #endif
 
@@ -401,14 +402,11 @@ void executeCmd() {
   * \details         Updates FRAM and resets current GM Tube count. Toggles the builtin LED if DEBUG is set.
   */
   void dataTimerCallback(void) {
-    #ifdef DEBUG
+    #ifdef TIMER_LED
       digitalWrite(LED_BUILTIN, togglepin);
       togglepin = !togglepin;
     #endif
     if (secondsCounter < 60) {
-      #ifdef DEBUG
-        //Serial.println("SRAM read not triggered");
-      #endif
       secondsCounter++;
       return;
     }

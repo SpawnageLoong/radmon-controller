@@ -116,6 +116,7 @@ void Fill_FRAM_Data(int iSize)
  * \param[in]       iSize: Number of bytes to dump
  * \details         Reads a given number of bytes from FRAM and dumps the values via Serial, starting at address 0x0000_0000. Use const FRAM_SIZE to dump entire FRAM, ending at 0x0000_7FFF.
  */
+#ifdef DUMP_SERIAL
 void Dump_FRAM_Data(int iSize)
 {
   int iInByteCount = 0;
@@ -167,6 +168,7 @@ void Dump_FRAM_Data(int iSize)
 
   return;
 }
+#endif
 
 
 /**
@@ -339,8 +341,10 @@ void FRAMWrite32(int CS_pin, int address, int value, int N_BYTE) {
  * \param[in]       iSize: 
  */
 void Initialize_FRAM(int iSize, int iEvenWord, int iOddWord) {
-    sprintf(cbuf, "    Initialize_FRAM();  Size: %04dbyte, EvenWords: 0x%08X, OddWords: 0x%08X \n", iSize*sizeof(int), iEvenWord, iOddWord);
-    Serial.print(cbuf);
+    #ifdef DEBUG
+      sprintf(cbuf, "    Initialize_FRAM();  Size: %04dbyte, EvenWords: 0x%08X, OddWords: 0x%08X \n", iSize*sizeof(int), iEvenWord, iOddWord);
+      Serial.print(cbuf);
+    #endif
 
     for (int i=0; i<iSize; i++)
     {
@@ -354,8 +358,10 @@ void Initialize_FRAM(int iSize, int iEvenWord, int iOddWord) {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Note: A word is 4 bytes
 void Custom_Data_Init_FRAM(int iSize) {
+  #ifdef DEBUG
     sprintf(cbuf, "Custom_Data_Init_FRAM();  Size: %04dbyte \n", iSize*sizeof(int));
     Serial.print(cbuf);
+  #endif
 
     int epochWord       = 0x672B11D0;
     int gmCountWord     = 0x00000064;
