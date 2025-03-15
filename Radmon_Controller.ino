@@ -411,6 +411,7 @@ void executeCmd() {
       return;
     }
     experimentTimerFlag = true;
+    is_executing_cmd = false;
   }
 
 
