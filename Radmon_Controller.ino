@@ -28,8 +28,8 @@
 // Compile Flags
 //**************************************************************************
 #define DEBUG 1
-//#define DEBUG_CAN 1
-//#define DUMP_SERIAL 1
+//define DEBUG_CAN 1
+//define DUMP_SERIAL 1
 #define DUMP_CAN 1
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
@@ -45,6 +45,8 @@
 bool is_executing_cmd = false;
 uint8_t iInputChar;
 uint8_t data[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+uint8_t rsp[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+uint8_t in_arr[9];
 #ifdef DEBUG
   char cbuf[100];
 #endif
@@ -101,6 +103,7 @@ volatile bool togglepin = false;
 //**************************************************************************
 
 void canCallback(int packetSize);
+void executeCmd();
 void gmTubeISR();
 void dataTimerCallback();
 void saveDataToFram();
@@ -216,7 +219,11 @@ void loop() {
     digitalWrite(GM_PIN_OUT, LOW);
   #endif
 
-  is_executing_cmd = false;
+  if (is_executing_cmd) {
+    executeCmd();
+    is_executing_cmd = false;
+    iInputChar = 0x00;
+  }
   delay(10);
 }
 
@@ -236,21 +243,16 @@ void canCallback(int packetSize) {
     }
   #else
     uint8_t packetDlc = CAN.packetDlc();
-    uint8_t in_arr[packetDlc];
-    CAN.readBytes(in_arr, packetDlc);
+    uint8_t can_in_arr[packetDlc];
+    CAN.readBytes(can_in_arr, packetDlc);
     #ifdef DEBUG
-      sprintf(cbuf, "Frame data: %X", in_arr[0]);
+      sprintf(cbuf, "Frame data: %X", can_in_arr[0]);
       for (int i=1; i<packetDlc; i++) {
-        sprintf(cbuf + strlen(cbuf), ", %X", in_arr[i]);
+        sprintf(cbuf + strlen(cbuf), ", %X", can_in_arr[i]);
       }
       sprintf(cbuf + strlen(cbuf), "\n");
       Serial.print(cbuf);
     #endif
-    iInputChar = in_arr[0];
-    uint16_t paramA = 0;
-    uint16_t paramB = 0;
-    uint32_t ts;
-    uint8_t rsp[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
     if (is_executing_cmd) {
       #ifdef DEBUG
         Serial.println("Device busy, discarding cmd");
@@ -262,8 +264,22 @@ void canCallback(int packetSize) {
       CAN.endPacket();
       return;
     }
+    iInputChar = can_in_arr[0];
+    in_arr[8] = packetDlc;
+    for (uint8_t i = 0; i < packetDlc; i++) {
+      in_arr[i] = can_in_arr[i];
+    }
     is_executing_cmd = true;
-    switch(iInputChar) {
+  #endif
+}
+
+/**
+* \brief           Execute command received from canCallback
+* \details         
+*/
+void executeCmd() {
+  uint32_t ts;
+  switch(iInputChar) {
       case 0x01: // Clear entire FRAM, reset rolling address to 0
         #ifdef DEBUG
           Serial.println("0x01 received, clearing FRAM and resetting address.");
@@ -283,7 +299,6 @@ void canCallback(int packetSize) {
         #ifdef DEBUG
           Serial.println("0x02 received, dumping FRAM");
         #endif
-
         #ifdef DUMP_SERIAL
           Dump_FRAM_Data(FRAM_SIZE);
         #endif
@@ -303,7 +318,6 @@ void canCallback(int packetSize) {
         #ifdef DEBUG
           Serial.println("0x02 received, dumping FRAM");
         #endif
-
         #ifdef DUMP_SERIAL
           Dump_FRAM_Data(512);
         #endif
@@ -336,17 +350,21 @@ void canCallback(int packetSize) {
         CAN.write(rsp, 8);
         CAN.endPacket();
         break;
-
-/*
-      case 0x03: // Debugging command
-        paramA = ((uint16_t)in_arr[1] << 8) | (uint16_t)in_arr[2];
-        paramB = ((uint16_t)in_arr[3] << 8) | (uint16_t)in_arr[4];
+      
+      case 0xEF: // Fill entire FRAM with 1
         #ifdef DEBUG
-          sprintf(cbuf, "Received debug command, param A=%i, paramB=%i\n", paramA, paramB);
-          Serial.print(cbuf);
+          Serial.println("0xEF received, filling FRAM");
         #endif
+
+        Fill_FRAM_Data(FRAM_SIZE);
+
+        rsp[0] = 0x01; // Response identifier
+        rsp[1] = 0xEF; // Cmd identifier
+        rsp[2] = 0xFF; // Cmd success
+        CAN.beginPacket(CAN_SEND_ID);
+        CAN.write(rsp, 8);
+        CAN.endPacket();
         break;
-*/
 
       default: // Unknown command
         #ifdef DEBUG
@@ -361,9 +379,10 @@ void canCallback(int packetSize) {
         break;
     }
     iInputChar = NULL;
-  #endif
+    for (uint8_t i = 0; i < 9; i++) {
+      in_arr[i] = 0;
+    }
 }
-
 
 #ifdef GM_COUNTER
   /**
@@ -555,7 +574,7 @@ void canCallback(int packetSize) {
       pinMode(SDA_PIN, INPUT_PULLUP);
 
       // Delay before resuming to allow the bus to stabilize
-      delay(100);
+      delay(1000);
     }
     #ifdef DEBUG
       Serial.println("Bus clearing was attempted");
@@ -690,7 +709,7 @@ void canCallback(int packetSize) {
           prettyPrint(c, bytesReceived); //print it
         #endif
 
-        if (bytesReceived >= 219 && bytesReceived <= 2219){
+        if (bytesReceived >= 0 && bytesReceived <= DATA_SIZE-1){
           byte_error_count = byteErrorCounter(c); //count number of errors
           total_error_count = total_error_count + byte_error_count; //increment error count
 

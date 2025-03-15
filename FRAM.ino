@@ -77,6 +77,35 @@ void Clear_FRAM_Data(int iSize)
   is_FRAM_full = false;
 }
 
+/**
+ * \brief           Fills values in FRAM
+ * \param[in]       iSize: Number of bytes to fill
+ * \details         Writes 1 to a given number of bytes in FRAM starting at address 0x0000_0000. Use const FRAM_SIZE to erase entire FRAM.
+ *                  This function is used for testing purposes.
+ */
+void Fill_FRAM_Data(int iSize)
+{
+  int temp=0;
+  
+  #ifdef DEBUG
+    Serial.print("\n Start clearing FRAM... \n"); // for debug
+  #endif
+  pinMode(FRAM_CS, OUTPUT);
+  digitalWrite(FRAM_CS, HIGH);
+  SPI.begin();
+  SPI.beginTransaction(SPISettings(SPI_MAX_SPEED, SPI_DATA_ORDER, SPI_DATA_MODE));
+
+  for(int i=FRAM_BASE_ADDRESS; i<iSize; i++)
+  {
+    FRAMWrite32( FRAM_CS, i, 1);
+    delayMicroseconds(1);
+  }
+  SPI.endTransaction();
+
+  is_FRAM_full = true;
+}
+
+
 
 /**
  * \brief           Dumps full FRAM data to Serial

@@ -37,8 +37,9 @@
 // Function declaration
 //*************************************************************
 void Clear_FRAM_Data(int iSize);
+void Fill_FRAM_Data(int iSize);
 void Dump_FRAM_Data(int iSize);
-void CAN_Dump_FRAM(uint16_t iSize);
+void Dump_FRAM_Data_CAN(int iSize);
 unsigned int FRAMRead32(int CS_pin, int address, int N_BYTE=1);
 uint8_t FRAMReadByte(int CS_pin, int address);
 void FRAMWrite32(int CS_pin, int address, int value, int N_BYTE=1);
