@@ -29,6 +29,7 @@
 #define CAN_REC_ID            0x010   // Frame ID for CAN packets with ZSOM as destination
 #define CAN_SEND_ID           0x011   // Frame ID for CAN packets with ZSOM as origin
 #define CAN_DATA_FRAME_ID     0x02    // Type identifier for data frames
+#define CAN_DELAY_MICROS      3       // Delay between each frame in microseconds
 
 //**************************************************************************
 // ZSOM/FRAM Defines

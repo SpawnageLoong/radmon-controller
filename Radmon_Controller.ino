@@ -46,7 +46,7 @@ bool is_executing_cmd = false;
 uint8_t iInputChar;
 uint8_t data[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 uint8_t rsp[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-uint8_t in_arr[9];
+volatile uint8_t in_arr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 #ifdef DEBUG
   char cbuf[100];
 #endif
@@ -124,7 +124,6 @@ void setup() {
   // Serial
   #ifdef DEBUG
     Serial.begin(9600);
-    //while (! Serial){}
     Serial.println("\n\n Serial init OK");
   #endif
 
@@ -266,7 +265,7 @@ void canCallback(int packetSize) {
     }
     iInputChar = can_in_arr[0];
     in_arr[8] = packetDlc;
-    for (uint8_t i = 0; i < packetDlc; i++) {
+    for (int i = 0; i < packetDlc; i++) {
       in_arr[i] = can_in_arr[i];
     }
     is_executing_cmd = true;

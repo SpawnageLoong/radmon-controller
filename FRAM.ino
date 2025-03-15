@@ -97,7 +97,7 @@ void Fill_FRAM_Data(int iSize)
 
   for(int i=FRAM_BASE_ADDRESS; i<iSize; i++)
   {
-    FRAMWrite32( FRAM_CS, i, 1);
+    FRAMWrite32( FRAM_CS, i, 0xFF);
     delayMicroseconds(1);
   }
   SPI.endTransaction();
@@ -136,7 +136,7 @@ void Dump_FRAM_Data(int iSize)
     // read from address
     i8Data <<= 8;
     i8Data |= FRAMRead32( FRAM_CS, i);
-    delayMicroseconds(1);
+    delayMicroseconds(CAN_DELAY_MICROS);
     iInByteCount++;
     // every read() command return 8bits data
     // 4 read means read back 32bits data.
@@ -200,7 +200,7 @@ void Dump_FRAM_Data_CAN(int iSize)
     // read from address
     i8Data <<= 8;
     i8Data |= FRAMRead32( FRAM_CS, i);
-    delayMicroseconds(1);
+    delayMicroseconds(CAN_DELAY_MICROS);
     iInByteCount++;
     // every read() command return 8bits data
     // 4 read means read back 32bits data.
