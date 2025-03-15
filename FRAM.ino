@@ -88,7 +88,7 @@ void Fill_FRAM_Data(int iSize)
   int temp=0;
   
   #ifdef DEBUG
-    Serial.print("\n Start clearing FRAM... \n"); // for debug
+    Serial.print("\n Start filling FRAM... \n"); // for debug
   #endif
   pinMode(FRAM_CS, OUTPUT);
   digitalWrite(FRAM_CS, HIGH);
@@ -103,6 +103,10 @@ void Fill_FRAM_Data(int iSize)
   SPI.endTransaction();
 
   is_FRAM_full = true;
+  
+  #ifdef DEBUG
+    Serial.println("\n FRAM cleared! "); // for debug
+  #endif
 }
 
 
