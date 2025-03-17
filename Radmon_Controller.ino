@@ -113,7 +113,7 @@ void clearBus();
 void powerCycle();
 bool performHandshake(int slaveAddress);
 void prettyPrint(uint8_t c, int bytesReceived);
-int byteErrorCounter(uint8_t c);
+int byteErrorCounter(uint8_t c, int bytesReceived);
 void printerReadSram(long int time_taken, int total_error_count);
 int readSram(int slaveAddress);
 
@@ -649,9 +649,10 @@ void executeCmd() {
   * \brief
   * \details         
   */
-  int byteErrorCounter(uint8_t c){
+  int byteErrorCounter(uint8_t c, int bytesReceived){
     int err_count = 0;
-    uint8_t reference_byte = 0x55;
+    uint8_t reference_array[] = {0x55, 0x56, 0x57, 0x58};
+    uint8_t reference_byte = reference_array[bytesReceived%4]; 
     uint8_t mask = 0x01;
     //do a bitwise xor of reference with c. -> the matching bit locations will be zero, the unmatched locations = 1, count the number of 1's in the byte
     uint8_t xored_byte = reference_byte ^ c; //8'b 0100 1000
@@ -701,25 +702,27 @@ void executeCmd() {
     while ((bytesReceived < DATA_SIZE) && (millis()-start_time < TIMEOUT_MS)){
       Wire.requestFrom(slaveAddress, CHUNK_SIZE); // Request CHUNK_SIZE bytes//keep requesting in chunks of 32 from slave.
 
-      while (Wire.available() && (millis()-start_time < TIMEOUT_MS)) {
+      while (Wire.available()) {
         uint8_t c = Wire.read(); // Read a byte
         #ifdef DEBUG
           prettyPrint(c, bytesReceived); //print it
         #endif
 
-        if (bytesReceived >= 0 && bytesReceived <= DATA_SIZE-1){
-          byte_error_count = byteErrorCounter(c); //count number of errors
-          total_error_count = total_error_count + byte_error_count; //increment error count
+        byte_error_count = byteErrorCounter(c, bytesReceived); //count number of errors
+        total_error_count = total_error_count + byte_error_count; //increment error count
 
-          if ((bytesReceived%10 == 0) && (slave_array_index < ARRAY_SIZE)){ //append to array
-            if (slaveAddress == SLAVE1_ADDRESS){slave1_SRAM[slave_array_index] = c;}
-            if (slaveAddress == SLAVE2_ADDRESS){slave2_SRAM[slave_array_index] = c;} 
-            slave_array_index++;
-          }
+        if ((bytesReceived%10 == 0) && (slave_array_index < ARRAY_SIZE)){ //append to array
+          if (slaveAddress == SLAVE1_ADDRESS){slave1_SRAM[slave_array_index] = c;}
+          if (slaveAddress == SLAVE2_ADDRESS){slave2_SRAM[slave_array_index] = c;} 
+          slave_array_index++;
         }
+        
         bytesReceived++;
 
         if (bytesReceived >= DATA_SIZE) {
+          Wire.beginTransmission(slaveAddress); 
+          Wire.write(READ_COMPLETE_ACK);
+          Wire.endTransmission();
           if (slaveAddress == SLAVE1_ADDRESS){errorCount1 = total_error_count;} //set total error count
           if (slaveAddress == SLAVE2_ADDRESS){errorCount2 = total_error_count;}
           #ifdef DEBUG

@@ -65,13 +65,14 @@
 #define SLAVE1_ADDRESS 1
 #define SLAVE2_ADDRESS 2
 
-#define DATA_SIZE 1984
+#define DATA_SIZE 2048
 #define CHUNK_SIZE 32
-#define ARRAY_SIZE 198
+#define ARRAY_SIZE 204
 
 #define HANDSHAKE_REQUEST 0x01
 #define HANDSHAKE_ACK 0x06
-#define TIMEOUT_MS 3000
+#define READ_COMPLETE_ACK 0x09
+#define TIMEOUT_MS 4000
 
 #define SCL_PIN 12
 #define SDA_PIN 11
