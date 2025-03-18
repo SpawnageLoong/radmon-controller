@@ -286,6 +286,7 @@ void executeCmd() {
         #endif
 
         Clear_FRAM_Data(FRAM_SIZE);
+        rollingAddress = 0x0000;
 
         rsp[0] = 0x01; // Response identifier
         rsp[1] = 0x01; // Cmd identifier
@@ -357,6 +358,7 @@ void executeCmd() {
         #endif
 
         Fill_FRAM_Data(FRAM_SIZE);
+        rollingAddress = 0x7FF;
 
         rsp[0] = 0x01; // Response identifier
         rsp[1] = 0xEF; // Cmd identifier
@@ -651,7 +653,7 @@ void executeCmd() {
   */
   int byteErrorCounter(uint8_t c, int bytesReceived){
     int err_count = 0;
-    uint8_t reference_array[] = {0x55, 0x56, 0x57, 0x58};
+    uint8_t reference_array[] = {0x54, 0x56, 0x57, 0x58};
     uint8_t reference_byte = reference_array[bytesReceived%4]; 
     uint8_t mask = 0x01;
     //do a bitwise xor of reference with c. -> the matching bit locations will be zero, the unmatched locations = 1, count the number of 1's in the byte
