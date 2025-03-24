@@ -32,7 +32,7 @@
 #define CAN_DELAY_MICROS      3       // Delay between each frame in microseconds
 
 //**************************************************************************
-// ZSOM/FRAM Defines
+// ZSOM Defines
 //**************************************************************************
 
 #define FRAM_CS             5           // CS Pin for ZSOM FRAM
@@ -85,6 +85,13 @@
 //read result outcomes
 #define READ_COMPLETE 1
 #define TIMEOUT 2
+
+//**************************************************************************
+// FRAM Defines
+//**************************************************************************
+
+#define SRAM_SAMPLE_SIZE (ARRAY_SIZE / 2)
+#define SRAM_SAMPLE_LAST_INDEX (ARRAY_SIZE / 4)
 
 
 

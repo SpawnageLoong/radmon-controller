@@ -451,11 +451,18 @@ void executeCmd() {
     uint16_t errCountB = (uint16_t)errorCount2;
     uint32_t errCountMerged = ((uint32_t)errCountA << 16 | (uint32_t)errCountB);
     int fixedFrame[] = { now, gmTubeCount, errCountMerged };
-    //uint32_t testDataA[64];
-    //uint32_t testDataB[64];
     Store_Data_To_FRAM(rollingAddress, fixedFrame, sizeof(fixedFrame));
     rollingAddress += sizeof(fixedFrame);
-    if (rollingAddress >= 0x7FF){
+    int sramData[SRAM_SAMPLE_SIZE];
+    for (int i=0; i<SRAM_SAMPLE_LAST_INDEX; i++) {
+      sramData[i] = ((uint32_t)slave1_SRAM[i*4] << 24 | (uint32_t)slave1_SRAM[i*4+1] << 16 | (uint32_t)slave1_SRAM[i*4+2] << 8 | (uint32_t)slave1_SRAM[i*4+3]);
+    }
+    for (int i=0; i<SRAM_SAMPLE_LAST_INDEX; i++) {
+      sramData[i+SRAM_SAMPLE_LAST_INDEX] = sramData[i] = ((uint32_t)slave2_SRAM[i*4] << 24 | (uint32_t)slave2_SRAM[i*4+1] << 16 | (uint32_t)slave2_SRAM[i*4+2] << 8 | (uint32_t)slave2_SRAM[i*4+3]);
+    }
+    Store_Data_To_FRAM(rollingAddress, sramData, sizeof(sramData));
+    rollingAddress += sizeof(sramData);
+    if (rollingAddress >= 0x7FFF){
       is_FRAM_full = true;
       #ifdef DEBUG
         Serial.println("FRAM is now full.");
@@ -621,17 +628,14 @@ void executeCmd() {
   */
   bool performHandshake(int slaveAddress) {
     unsigned long startTime = millis();
-    Serial.println("debug 1");
       Wire.beginTransmission(slaveAddress);
       Wire.write(HANDSHAKE_REQUEST); // Send handshake request
       Wire.endTransmission();
-      Serial.println("debug 2");
       delay(100);
       Wire.requestFrom(slaveAddress, 1); // Request 1 byte for handshake acknowledgment
       delay(100);
 
     // Wait for acknowledgment within timeout
-    Serial.println("debug 3");
     while (millis() - startTime < TIMEOUT_MS) {
       if(Wire.available()){
       

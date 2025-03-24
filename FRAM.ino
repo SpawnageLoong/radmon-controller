@@ -449,11 +449,13 @@ void Store_Data_To_FRAM(int iAddress, int *iArray, int iSize)
   int iData;
   int error = 0;
 
-  Serial.print("    -- Store_Data_To_FRAM --");
-  Serial.print(" >> Address : 0x");
-  Serial.print(iAddress,HEX); 
-  Serial.print(" >> Size : ");
-  Serial.println(iSize);
+  #ifdef DEBUG
+    Serial.print("    -- Store_Data_To_FRAM --");
+    Serial.print(" >> Address : 0x");
+    Serial.print(iAddress,HEX); 
+    Serial.print(" >> Size : ");
+    Serial.println(iSize);
+  #endif
 
   pinMode(FRAM_CS, OUTPUT);
   digitalWrite(FRAM_CS, HIGH);
