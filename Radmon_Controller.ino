@@ -400,7 +400,7 @@ void executeCmd() {
       Serial.println("GM interrupt.");
     #endif
     long timeSinceSignal = millis() - debouncerTime;
-    if (timeSinceSignal < 20 && timeSinceSignal >= 0) {
+    if (timeSinceSignal < DEBOUNCER_TIME && timeSinceSignal >= 0) {
       return;
     }
     gmTubeCount++;  // Increment count each time a falling edge is detected

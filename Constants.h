@@ -57,7 +57,7 @@
 #define GM_PIN_INT              4     // INT Pin (INT[11])
 #define GM_PIN_OUT              3     // LED Output
 #define DATA_TIMER              3     // Timer 3 is used
-#define DEBOUNCE_TIMER          4     // Timer 4 is used
+#define DEBOUNCER_TIME          10     // Debounce duration
 
 //**************************************************************************
 // I2C Defines
