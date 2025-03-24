@@ -35,7 +35,7 @@
 #define I2C_SLAVES 1
 #define TIMER 1
 #define TIMER_LED 1
-#define GM_DEBUG_SERIAL 1
+//define GM_DEBUG_SERIAL 1
 #define RTC_ON 1
 
 
@@ -59,6 +59,7 @@ bool is_FRAM_full = false;
 
 // GM Tube
 volatile uint32_t gmTubeCount = 0;
+volatile uint32_t debouncerTime = 0;
 
 // Timer
 #ifdef TIMER
@@ -398,7 +399,12 @@ void executeCmd() {
     #ifdef GM_DEBUG_SERIAL
       Serial.println("GM interrupt.");
     #endif
+    long timeSinceSignal = millis() - debouncerTime;
+    if (timeSinceSignal < 20 && timeSinceSignal >= 0) {
+      return;
+    }
     gmTubeCount++;  // Increment count each time a falling edge is detected
+    debouncerTime = millis();
     #ifdef GM_DEBUG_SERIAL
       Serial.println("GM Count incremented.");
     #endif
