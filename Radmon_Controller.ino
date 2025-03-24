@@ -34,7 +34,9 @@
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
 #define TIMER 1
-#define TIMER_LED 1
+//define TIMER_LED 1
+#define DEBOUNCE_LED 1
+#define GM_DEBUG_SERIAL 1
 #define RTC_ON 1
 
 
@@ -103,11 +105,11 @@ volatile bool togglepin = false;
 #endif
 
 void TC4_Handler() {
-    Adafruit_ZeroTimer::timerHandler(4);
-  }
-  #define DEBOUNCE_TIMER_DIVIDER     1024
-  #define DEBOUNCE_TIMER_PRESCALER   TC_CLOCK_PRESCALER_DIV1024
-  #define DEBOUNCE_TIMER_COMPARE     (48000000/5120000)         // 200 microsec
+  Adafruit_ZeroTimer::timerHandler(4);
+}
+#define DEBOUNCE_TIMER_DIVIDER     1024
+#define DEBOUNCE_TIMER_PRESCALER   TC_CLOCK_PRESCALER_DIV1024
+#define DEBOUNCE_TIMER_COMPARE     (48000000/5120000)         // 200 microsec
 
 
 //**************************************************************************
@@ -148,15 +150,15 @@ void setup() {
     pinMode(GM_PIN_INT, INPUT_PULLUP);
     pinMode(GM_PIN_OUT, OUTPUT);
     debounceTimer.enable(false);
-    dataTimer.configure(DEBOUNCE_TIMER_PRESCALER,  // 48MHz clock divided by 1024 = 46.875kHz
+    debounceTimer.configure(DEBOUNCE_TIMER_PRESCALER,  // 48MHz clock divided by 1024 = 46.875kHz
           TC_COUNTER_SIZE_16BIT,                // 65,536 bit width of counter
           TC_WAVE_GENERATION_MATCH_PWM          // frequency or PWM mode
     );
-    dataTimer.setCompare(0, DEBOUNCE_TIMER_COMPARE);
-    dataTimer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, debounceTimerCallback);
+    debounceTimer.setCompare(0, DEBOUNCE_TIMER_COMPARE);
+    debounceTimer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, debounceTimerCallback);
   #endif
 
-  // Builtin LED for 1-sec timer
+  // Builtin LED for 1-sec timer or debouncer
   #ifdef TIMER_LED
     pinMode(LED_BUILTIN, OUTPUT);
   #endif
@@ -410,14 +412,24 @@ void executeCmd() {
   * \details         Increments gmTubeCount when triggered. Enables GM_PIN_OUT if DEBUG is set.
   */
   void gmTubeISR() {
-    if (is_debouncer_active) {
+    #ifdef GM_DEBUG_SERIAL
+      Serial.print("GM interrupt. is_debouncer_active = ");
+      Serial.println(is_debouncer_active);
+    #endif
+    if (is_debouncer_active == true) {
       return;
     }
     gmTubeCount++;  // Increment count each time a falling edge is detected
+    #ifdef GM_DEBUG_SERIAL
+      Serial.println("GM Count incremented.");
+    #endif
     is_debouncer_active = true; // Activate the debouncer
     debounceTimer.enable(true); // Start the debounce timer
     #ifdef DEBUG
       digitalWrite(GM_PIN_OUT, HIGH);
+    #endif
+    #ifdef DEBOUNCE_LED
+      digitalWrite(LED_BUILTIN, HIGH);
     #endif
   }
 
@@ -426,9 +438,15 @@ void executeCmd() {
   * \brief           Callback function to handle debounceTimer compare interrupts
   * \details         Sets debouncer flag to false and deactivates the debouncer timer.
   */
-  void debounceTimerCallback(void) {
+  void debounceTimerCallback() {
     is_debouncer_active = false;
     debounceTimer.enable(false);
+    #ifdef DEBOUNCE_LED
+      digitalWrite(LED_BUILTIN, LOW);
+    #endif
+    #ifdef GM_DEBUG_SERIAL
+      Serial.println("Debouncer deactivated.");
+    #endif
   }
 
 
@@ -436,7 +454,7 @@ void executeCmd() {
   * \brief           Callback function to handle dataTimer compare interrupts
   * \details         Updates FRAM and resets current GM Tube count. Toggles the builtin LED if DEBUG is set.
   */
-  void dataTimerCallback(void) {
+  void dataTimerCallback() {
     #ifdef TIMER_LED
       digitalWrite(LED_BUILTIN, togglepin);
       togglepin = !togglepin;
