@@ -84,6 +84,8 @@ volatile uint32_t debouncerTime = 0;
   volatile uint8_t slave1_SRAM[ARRAY_SIZE];
   volatile uint8_t slave2_SRAM[ARRAY_SIZE];
   bool experimentTimerFlag = 0;
+  bool atmega1on = 1;
+  bool atmega2on = 1;
 #endif
 
 // test vars
@@ -139,7 +141,6 @@ void setup() {
   // Geiger Counter
   #ifdef GM_COUNTER
     pinMode(GM_PIN_INT, INPUT_PULLUP);
-    pinMode(GM_PIN_OUT, OUTPUT);
   #endif
 
   // Builtin LED for 1-sec timer or debouncer
@@ -170,11 +171,10 @@ void setup() {
     Wire.begin(); // Start I2C as master
     //pinMode(SCL_PIN, INPUT_PULLUP); //for open drain
     //pinMode(SDA_PIN, INPUT_PULLUP); //for open drain
-    pinMode(PCYCLE_PIN, OUTPUT);
-    digitalWrite(PCYCLE_PIN, LOW); //set low to switch on the atmegas
-    pinMode(LOW_PIN, OUTPUT);
-    digitalWrite(LOW_PIN, LOW); //set pin forever low 
-    pinMode(TRIGGER_PIN, INPUT_PULLUP); //set pin high unless external drives it low.
+    pinMode(PCYCLE_PIN1, OUTPUT);
+    pinMode(PCYCLE_PIN2, OUTPUT);
+    digitalWrite(PCYCLE_PIN1, LOW); //set low to switch on the atmegas
+    digitalWrite(PCYCLE_PIN2, LOW); //set low to switch on the atmegas
   #endif
 
   // CAN
@@ -217,10 +217,6 @@ void loop() {
       saveDataToFram();
       experimentTimerFlag = false;
     }
-  #endif
-
-  #ifdef DEBUG
-    digitalWrite(GM_PIN_OUT, LOW);
   #endif
 
   if (is_executing_cmd) {
@@ -408,9 +404,6 @@ void executeCmd() {
     #ifdef GM_DEBUG_SERIAL
       Serial.println("GM Count incremented.");
     #endif
-    #ifdef DEBUG
-      digitalWrite(GM_PIN_OUT, HIGH);
-    #endif
   }
 
 
@@ -490,57 +483,29 @@ void executeCmd() {
     readResult2 = 0;
 
     unsigned long start_loop_time = millis();
+
     #ifdef DEBUG
       Serial.println("Reading the 2 SRAMs");
     #endif  
 
-    #ifdef DEBUG
-      Serial.println("Requesting Handshake from Slave 1");
-    #endif
-
-    handshake1 = performHandshake(SLAVE1_ADDRESS); //handshake with slave 1
-
-    if (handshake1){ //if handshake 1 is successful
+    if (atmega1on){
       #ifdef DEBUG
-        Serial.println("Handshake with Slave1 Successful");
-        Serial.println("Reading SRAM of Slave 1");
-      #endif
-      readResult1 = readSram(SLAVE1_ADDRESS); //read sram data
-    }
-
-    if ((!handshake1) || (readResult1 != READ_COMPLETE)){ //if no handshake or no read
-      #ifdef DEBUG
-        Serial.println("Need to clear the bus due to slave 1");
+        Serial.println("Requesting Handshake from Slave 1");
       #endif
 
-      if (clearBusCounter >= 1) { //1 clear bus failed
-        clearBusCounter = 0;
-        powerCycle();
-      }
-      else{
-        clearBus();
-        clearBusCounter++;
-      }
-      //then just let the loop() just run again
-    }
+      handshake1 = performHandshake(SLAVE1_ADDRESS); //handshake with slave 1
 
-    else { //if read1 was done
-      #ifdef DEBUG
-        Serial.println("Requesting Handshake from Slave 2");
-      #endif
-
-      handshake2 = performHandshake(SLAVE2_ADDRESS);//try handshake2  
-      if (handshake2){ //read SRAM2 
+      if (handshake1){ //if handshake 1 is successful
         #ifdef DEBUG
-          Serial.println("Handshake with Slave 2 Successful");
-          Serial.println("Reading SRAM of Slave 2");
+          Serial.println("Handshake with Slave1 Successful");
+          Serial.println("Reading SRAM of Slave 1");
         #endif
-        readResult2 = readSram(SLAVE2_ADDRESS); //read sram data
+        readResult1 = readSram(SLAVE1_ADDRESS); //read sram data
       }
 
-      if ((!handshake2) || (readResult2 != READ_COMPLETE)){ //if either handshake or read wasn't successful.
+      if ((!handshake1) || (readResult1 != READ_COMPLETE)){ //if no handshake or no read
         #ifdef DEBUG
-          Serial.print("Need to clear the bus due to slave 2");
+          Serial.println("Need to clear the bus due to slave 1");
         #endif
 
         if (clearBusCounter >= 1) { //1 clear bus failed
@@ -552,17 +517,53 @@ void executeCmd() {
           clearBusCounter++;
         }
       }
+    }
 
-      else { //if read2 was successful
+    if (atmega2on){
+      if (atmega1on && ((!handshake1) || (readResult1 != READ_COMPLETE))){//if one was supposed to read but it wasn't successful, run the loop again
+      }
+      else { //read 1 sorted
         #ifdef DEBUG
-          Serial.print("Error count for SRAM1: ");
-          Serial.println(errorCount1);
-          Serial.print("Error count for SRAM2: ");
-          Serial.println(errorCount2);
-          Serial.println("Reading of 2 SRAMs successfully completed");
+          Serial.println("Requesting Handshake from Slave 2");
         #endif
+
+        handshake2 = performHandshake(SLAVE2_ADDRESS);//try handshake2  
+        if (handshake2){ //read SRAM2 
+          #ifdef DEBUG
+            Serial.println("Handshake with Slave 2 Successful");
+            Serial.println("Reading SRAM of Slave 2");
+          #endif
+          readResult2 = readSram(SLAVE2_ADDRESS); //read sram data
+        }
+
+        if ((!handshake2) || (readResult2 != READ_COMPLETE)){ //if either handshake or read wasn't successful.
+          #ifdef DEBUG
+            Serial.print("Need to clear the bus due to slave 2");
+          #endif
+
+          if (clearBusCounter >= 1) { //1 clear bus failed
+            clearBusCounter = 0;
+            powerCycle();
+          }
+          else{
+            clearBus();
+            clearBusCounter++;
+          }
+        }
       }
     }
+
+    #ifdef DEBUG
+      if (atmega1on && readResult1 == READ_COMPLETE){
+        Serial.print("Error count for SRAM1: ");
+        Serial.println(errorCount1);
+      }
+      if (atmega2on && readResult2 == READ_COMPLETE){
+        Serial.print("Error count for SRAM2: ");
+        Serial.println(errorCount2);
+      }
+    #endif
+
     #ifdef DEBUG
       Serial.print("Time since read trigger is ");
       Serial.println(millis()-start_loop_time);
@@ -612,10 +613,16 @@ void executeCmd() {
     #ifdef DEBUG
       Serial.println("Power Cycling Now");
     #endif
-    digitalWrite(PCYCLE_PIN, HIGH);
-    delay(3000);
-    digitalWrite(PCYCLE_PIN, LOW);
-    delay(3000);
+    digitalWrite(PCYCLE_PIN1, HIGH);
+    digitalWrite(PCYCLE_PIN2, HIGH);
+    delay(1000);
+    if (atmega1on){
+      digitalWrite(PCYCLE_PIN1, LOW);
+    }
+    if (atmega2on){
+      digitalWrite(PCYCLE_PIN2, LOW);
+    }
+    delay(1000);
     #ifdef DEBUG
       Serial.println("Power Cycling Complete");
     #endif

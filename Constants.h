@@ -55,7 +55,6 @@
 //**************************************************************************
 
 #define GM_PIN_INT              4     // INT Pin (INT[11])
-#define GM_PIN_OUT              3     // LED Output
 #define DATA_TIMER              3     // Timer 3 is used
 #define DEBOUNCER_TIME          10     // Debounce duration
 
@@ -78,9 +77,8 @@
 #define SCL_PIN 12
 #define SDA_PIN 11
 
-#define PCYCLE_PIN 6 //to switch on devices, set to low, to switch off set to high
-#define TRIGGER_PIN 8
-#define LOW_PIN 9
+#define PCYCLE_PIN1 6 //to switch on devices, set to low, to switch off set to high
+#define PCYCLE_PIN2 3
 
 //read result outcomes
 #define READ_COMPLETE 1
