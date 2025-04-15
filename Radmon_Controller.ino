@@ -34,7 +34,8 @@
 #define GM_COUNTER 1
 #define I2C_SLAVES 1
 #define TIMER 1
-#define TIMER_LED 1
+//define TIMER_LED 1
+#define GM_LED 1
 //define GM_DEBUG_SERIAL 1
 #define RTC_ON 1
 
@@ -148,6 +149,11 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
   #endif
 
+  // Builtin LED for GM Counter
+  #ifdef GM_LED
+    pinMode(LED_BUILTIN, OUTPUT);
+  #endif
+
   // Timer
   #ifdef TIMER
     dataTimer.enable(false);
@@ -224,6 +230,9 @@ void loop() {
     is_executing_cmd = false;
     iInputChar = 0x00;
   }
+  #ifdef GM_LED
+      digitalWrite(LED_BUILTIN, LOW);
+    #endif
   delay(10);
 }
 
@@ -403,6 +412,9 @@ void executeCmd() {
     debouncerTime = millis();
     #ifdef GM_DEBUG_SERIAL
       Serial.println("GM Count incremented.");
+    #endif
+    #ifdef GM_LED
+      digitalWrite(LED_BUILTIN, HIGH);
     #endif
   }
 
